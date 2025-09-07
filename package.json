@@ -1,0 +1,17 @@
+{
+  "name": "ban-md-bundled",
+  "version": "1.0.0",
+  "main": "server.js",
+  "type": "module",
+  "scripts": {
+    "start": "node server.js"
+  },
+  "dependencies": {
+    "@whiskeysockets/baileys": "^6.6.0",
+    "cors": "^2.8.5",
+    "express": "^4.18.2",
+    "node-cache": "^5.1.2",
+    "pino": "^8.15.0",
+    "qrcode": "^1.5.3"
+  }
+}

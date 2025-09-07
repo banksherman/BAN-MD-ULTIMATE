@@ -1,0 +1,52 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <title>BAN-MD Pairing</title>
+  <style>
+    body { font-family: sans-serif; text-align: center; background: #0f1724; color: #fff; }
+    .qr { margin: 20px auto; }
+    input { padding: 10px; margin: 10px; border-radius: 6px; border: none; width: 250px; }
+    button { padding: 10px 15px; border: none; border-radius: 6px; background: #06b6d4; color: #fff; cursor: pointer; }
+    .footer { margin-top: 20px; font-size: 12px; color: #94a3b8; }
+  </style>
+</head>
+<body>
+  <h1>BAN-MD PAIRING</h1>
+  <p>Scan QR or request a pairing code</p>
+  <div id="qrcode" class="qr"></div>
+  <div>
+    <input id="phone" type="tel" placeholder="2567XXXXXXX" />
+    <button onclick="requestCode()">Request Pair Code</button>
+    <div id="paircode"></div>
+  </div>
+  <div class="footer">Powered by <strong>KHAREL</strong></div>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>
+  <script>
+    async function loadQR() {
+      const res = await fetch('/qr');
+      const data = await res.json();
+      if (data.ok) {
+        document.getElementById('qrcode').innerHTML = '';
+        new QRCode(document.getElementById('qrcode'), data.qr);
+      } else {
+        document.getElementById('qrcode').innerText = 'Failed to load QR';
+      }
+    }
+    async function requestCode() {
+      const phone = document.getElementById('phone').value.trim();
+      if (!phone) return alert('Enter your phone number with country code');
+      const res = await fetch('/paircode?phone=' + phone);
+      const data = await res.json();
+      if (data.ok) {
+        document.getElementById('paircode').innerText = 'Your pair code: ' + data.code;
+      } else {
+        alert(data.message);
+      }
+    }
+    loadQR();
+    setInterval(loadQR, 20000);
+  </script>
+</body>
+</html>
