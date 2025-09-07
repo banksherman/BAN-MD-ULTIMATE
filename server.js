@@ -1,4 +1,4 @@
-// BAN-MD Ultimate Pairing Server
+// BAN-MD Ultimate Bot Server
 // Node.js v20+ recommended
 
 import express from "express";
@@ -23,7 +23,7 @@ let sock;
 let lastQR = null;
 let qrAt = null;
 let jid = null;
-const QR_TTL = 20_000; // QR valid for 20 seconds
+const QR_TTL = 20_000;
 const SESS_DIR = "./sessions";
 
 // -------------------- Helpers --------------------
@@ -34,6 +34,33 @@ function generateSessionId() {
 function broadcast(event, data) {
   console.log(`📢 Event: ${event}`, data);
 }
+
+// -------------------- Commands Framework --------------------
+const commands = {
+  ping: {
+    description: "Check if the bot is alive",
+    execute: async (sock, from) => {
+      await sock.sendMessage(from, { text: "🏓 Pong! BAN-MD Ultimate is alive." });
+    }
+  },
+  menu: {
+    description: "Show available commands",
+    execute: async (sock, from) => {
+      const menu = Object.keys(commands)
+        .map((cmd) => `• !${cmd} → ${commands[cmd].description}`)
+        .join("\n");
+      await sock.sendMessage(from, {
+        text: `🤖 *BAN-MD Ultimate*\n\n${menu}`
+      });
+    }
+  },
+  help: {
+    description: "Alias for !menu",
+    execute: async (sock, from) => {
+      return commands.menu.execute(sock, from);
+    }
+  }
+};
 
 // -------------------- WhatsApp Socket --------------------
 async function startSock() {
@@ -53,6 +80,7 @@ async function startSock() {
 
   sock.ev.on("creds.update", saveCreds);
 
+  // Connection updates
   sock.ev.on("connection.update", async (update) => {
     const { connection, lastDisconnect, qr } = update;
 
@@ -73,7 +101,7 @@ async function startSock() {
 
       broadcast("connected", { jid, sessionId });
 
-      // 📩 Send welcome DM with Session ID
+      // Welcome DM
       const imagePath = path.join(__dirname, "public", "connected.jpg");
       try {
         if (fs.existsSync(imagePath)) {
@@ -90,7 +118,7 @@ async function startSock() {
         console.error("❌ Failed to send welcome DM:", err);
       }
 
-      lastQR = null; // clear QR after success
+      lastQR = null;
     }
 
     if (connection === "close") {
@@ -105,7 +133,66 @@ async function startSock() {
       }
     }
   });
+
+  // 📩 Message handler
+  sock.ev.on("messages.upsert", async (m) => {
+    try {
+      const msg = m.messages[0];
+      if (!msg.message || msg.key.fromMe) return;
+
+      const from = msg.key.remoteJid;
+      const type = Object.keys(msg.message)[0];
+      const body =
+        type === "conversation"
+          ? msg.message.conversation
+          : type === "extendedTextMessage"
+          ? msg.message.extendedTextMessage.text
+          : "";
+
+      console.log(`💬 Message from ${from}: ${body}`);
+
+      // Command handler
+      if (body.startsWith("!")) {
+        const cmd = body.slice(1).trim().toLowerCase();
+        if (commands[cmd]) {
+          await commands[cmd].execute(sock, from);
+        } else {
+          await sock.sendMessage(from, {
+            text: `❌ Unknown command: *!${cmd}*\nType *!menu* to see available commands.`
+          });
+        }
+      }
+    } catch (err) {
+      console.error("❌ Error in message handler:", err);
+    }
+  });
 }
+
+// -------------------- API --------------------
+app.get("/qr", (req, res) => {
+  if (!lastQR) return res.status(404).json({ ok: false, message: "No QR available" });
+
+  const age = Date.now() - qrAt;
+  if (age > QR_TTL) {
+    lastQR = null;
+    return res.status(410).json({ ok: false, message: "QR expired" });
+  }
+
+  res.json({ ok: true, qr: lastQR, ttl: QR_TTL - age });
+});
+
+// -------------------- Boot --------------------
+startSock().catch((e) => {
+  console.error("startSock failed:", e);
+  process.exit(1);
+});
+
+process.on("uncaughtException", (e) => console.error("uncaughtException", e));
+process.on("unhandledRejection", (e) => console.error("unhandledRejection", e));
+
+app.listen(PORT, () => {
+  console.log(`✅ Server running on http://localhost:${PORT}`);
+});
 
 // -------------------- API Endpoints --------------------
 app.get("/qr", (req, res) => {
