@@ -15,6 +15,7 @@ app.use(express.static(path.join(__dirname, "public")));
 
 let sock;
 let lastQR = null;
+let qrTimestamp = null;
 
 async function startSock() {
   const { state, saveCreds } = await useMultiFileAuthState("./sessions");
@@ -22,20 +23,24 @@ async function startSock() {
 
   sock = makeWASocket({
     version,
-    auth: state
+    auth: state,
+    printQRInTerminal: false // don’t print in console, we’ll serve it
   });
 
   sock.ev.on("connection.update", (update) => {
     const { connection, qr } = update;
 
     if (qr) {
-      lastQR = qr; // store latest QR
-      console.log("✅ QR generated, waiting for scan...");
+      lastQR = qr;
+      qrTimestamp = Date.now();
+      console.log("✅ New QR generated, valid for 20s...");
     }
 
     if (connection === "open") {
       console.log("✅ WhatsApp logged in as", sock.user.id);
-      sock.sendMessage(sock.user.id, { text: `🤖 Welcome! Session ID: ${sock.user.id}` });
+      sock.sendMessage(sock.user.id, {
+        text: `🤖 Welcome! Session ID: ${sock.user.id}`
+      });
     }
   });
 
@@ -44,12 +49,15 @@ async function startSock() {
 
 startSock();
 
-// 🔥 expose endpoint for frontend to fetch latest QR
+// endpoint for frontend to fetch latest QR
 app.get("/qr", (req, res) => {
-  if (!lastQR) {
-    return res.status(404).json({ ok: false, message: "No QR yet" });
+  // Check if QR is expired (20s max)
+  if (!lastQR || (Date.now() - qrTimestamp > 20000)) {
+    return res.status(404).json({ ok: false, message: "QR expired, please reload" });
   }
   res.json({ ok: true, qr: lastQR });
 });
 
-app.listen(PORT, () => console.log(`✅ Server running at http://localhost:${PORT}`));
+app.listen(PORT, () =>
+  console.log(`✅ Server running at http://localhost:${PORT}`)
+);
