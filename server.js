@@ -1,6 +1,9 @@
 import express from "express";
-import { makeWASocket, useMultiFileAuthState, fetchLatestBaileysVersion } from "@whiskeysockets/baileys";
-import qrcode from "qrcode";
+import {
+  makeWASocket,
+  useMultiFileAuthState,
+  fetchLatestBaileysVersion
+} from "@whiskeysockets/baileys";
 import fs from "fs";
 import path from "path";
 
@@ -8,15 +11,10 @@ const app = express();
 const __dirname = path.resolve();
 const PORT = process.env.PORT || 3000;
 
-// Ensure public folder exists
-const publicDir = path.join(__dirname, "public");
-if (!fs.existsSync(publicDir)) {
-  fs.mkdirSync(publicDir, { recursive: true });
-}
-
-app.use(express.static(publicDir));
+app.use(express.static(path.join(__dirname, "public")));
 
 let sock;
+let lastQR = null;
 
 async function startSock() {
   const { state, saveCreds } = await useMultiFileAuthState("./sessions");
@@ -24,25 +22,20 @@ async function startSock() {
 
   sock = makeWASocket({
     version,
-    printQRInTerminal: true,
-    auth: state,
+    auth: state
   });
 
-  sock.ev.on("connection.update", async (update) => {
+  sock.ev.on("connection.update", (update) => {
     const { connection, qr } = update;
 
     if (qr) {
-      const qrPath = path.join(publicDir, "qr.json");
-      fs.writeFileSync(qrPath, JSON.stringify({ qr }));
-      console.log("✅ QR saved to /public/qr.json");
+      lastQR = qr; // store latest QR
+      console.log("✅ QR generated, waiting for scan...");
     }
 
     if (connection === "open") {
-      const id = sock.user.id;
-      await sock.sendMessage(id, {
-        text: `🤖 Welcome to BAN-MD Ultimate!\n✅ Session ID: ${id}`,
-      });
-      console.log("✅ Logged in as:", id);
+      console.log("✅ WhatsApp logged in as", sock.user.id);
+      sock.sendMessage(sock.user.id, { text: `🤖 Welcome! Session ID: ${sock.user.id}` });
     }
   });
 
@@ -51,6 +44,12 @@ async function startSock() {
 
 startSock();
 
-app.listen(PORT, () =>
-  console.log(`✅ Server running at http://localhost:${PORT}`)
-);
+// 🔥 expose endpoint for frontend to fetch latest QR
+app.get("/qr", (req, res) => {
+  if (!lastQR) {
+    return res.status(404).json({ ok: false, message: "No QR yet" });
+  }
+  res.json({ ok: true, qr: lastQR });
+});
+
+app.listen(PORT, () => console.log(`✅ Server running at http://localhost:${PORT}`));
