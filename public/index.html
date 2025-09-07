@@ -27,8 +27,8 @@
 
     <div class="qr">
       <h2>📲💻 Scan QR to Login</h2>
-      <button onclick="loadQR()">Load QR</button>
-      <div id="qrcode"></div>
+      <p>Open WhatsApp → Linked Devices → Scan QR</p>
+      <div id="qrcode">⏳ Waiting for QR...</div>
     </div>
 
     <div class="footer">Powered by <strong>KHAREL</strong></div>
@@ -52,26 +52,35 @@
     }
 
     async function loadQR() {
-      const res = await fetch('/qr');
-      if (!res.ok) {
-        document.getElementById('qrcode').innerText = '❌ QR not generated yet. Please try again.';
-        return;
-      }
-      const data = await res.json();
-      if (!data.ok || !data.qr) {
-        document.getElementById('qrcode').innerText = '❌ QR not ready yet.';
-        return;
-      }
-      document.getElementById('qrcode').innerHTML = '';
-      QRCode.toCanvas(data.qr, { width: 220 }, function (err, canvas) {
-        if (err) {
-          console.error(err);
-          document.getElementById('qrcode').innerText = '❌ Error generating QR';
+      try {
+        const res = await fetch('/qr');
+        if (!res.ok) {
+          document.getElementById('qrcode').innerText = '❌ QR not generated yet. Please wait...';
           return;
         }
-        document.getElementById('qrcode').appendChild(canvas);
-      });
+        const data = await res.json();
+        if (!data.ok || !data.qr) {
+          document.getElementById('qrcode').innerText = '❌ QR not ready yet.';
+          return;
+        }
+        document.getElementById('qrcode').innerHTML = '';
+        QRCode.toCanvas(data.qr, { width: 220 }, function (err, canvas) {
+          if (err) {
+            console.error(err);
+            document.getElementById('qrcode').innerText = '❌ Error generating QR';
+            return;
+          }
+          document.getElementById('qrcode').appendChild(canvas);
+        });
+      } catch (e) {
+        document.getElementById('qrcode').innerText = '❌ Failed to load QR';
+      }
     }
+
+    // 🔄 Auto-refresh QR every 15 seconds
+    setInterval(loadQR, 15000);
+    // Load immediately on page open
+    loadQR();
   </script>
 </body>
 </html>
