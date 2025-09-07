@@ -8,7 +8,13 @@ const app = express();
 const __dirname = path.resolve();
 const PORT = process.env.PORT || 3000;
 
-app.use(express.static(path.join(__dirname, "public")));
+// Ensure public folder exists
+const publicDir = path.join(__dirname, "public");
+if (!fs.existsSync(publicDir)) {
+  fs.mkdirSync(publicDir, { recursive: true });
+}
+
+app.use(express.static(publicDir));
 
 let sock;
 
@@ -19,18 +25,23 @@ async function startSock() {
   sock = makeWASocket({
     version,
     printQRInTerminal: true,
-    auth: state
+    auth: state,
   });
 
   sock.ev.on("connection.update", async (update) => {
     const { connection, qr } = update;
+
     if (qr) {
-      const qrPath = path.join(__dirname, "public/qr.json");
+      const qrPath = path.join(publicDir, "qr.json");
       fs.writeFileSync(qrPath, JSON.stringify({ qr }));
+      console.log("✅ QR saved to /public/qr.json");
     }
+
     if (connection === "open") {
       const id = sock.user.id;
-      await sock.sendMessage(id, { text: `🤖 Welcome to BAN-MD Ultimate!\n✅ Session ID: ${id}` });
+      await sock.sendMessage(id, {
+        text: `🤖 Welcome to BAN-MD Ultimate!\n✅ Session ID: ${id}`,
+      });
       console.log("✅ Logged in as:", id);
     }
   });
@@ -40,4 +51,6 @@ async function startSock() {
 
 startSock();
 
-app.listen(PORT, () => console.log(`✅ Server running at http://localhost:${PORT}`));
+app.listen(PORT, () =>
+  console.log(`✅ Server running at http://localhost:${PORT}`)
+);
