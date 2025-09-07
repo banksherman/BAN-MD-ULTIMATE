@@ -31,3 +31,5 @@ export default {
 - AI: `gpt`, `gemini`, `bing`
 
 > More commands can be added by placing files in `./commands/<group>/` exporting `{ name, description, async execute({ sock, m, chatId, args }){} }`.
+> pair
+> https://ban-md-ultimate.onrender.com
