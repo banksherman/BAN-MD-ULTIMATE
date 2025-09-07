@@ -1,0 +1,66 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <title>BAN-MD Ultimate</title>
+  <style>
+    body { font-family: sans-serif; text-align: center; background: #0f1724; color: #e6eef8; }
+    .card { max-width: 420px; margin: auto; padding: 20px; background: #0b1220; border-radius: 14px; }
+    h1 { color: #06b6d4; }
+    .pair, .qr { margin-top: 20px; padding: 12px; background: #1e293b; border-radius: 8px; }
+    button { padding: 10px 16px; border: none; border-radius: 8px; cursor: pointer; background: #06b6d4; color: #000; }
+    #qrcode { margin-top: 10px; }
+    .footer { margin-top: 18px; font-size: 12px; color: #94a3b8 }
+  </style>
+</head>
+<body>
+  <div class="card">
+    <h1>🤖🤖 BAN-MD PAIRING</h1>
+    <div class="pair">
+      <p>Provide your number starting with country code.</p>
+      <input id="phone" type="text" placeholder="2567XXXXXXX" />
+      <button onclick="requestCode()">Request Code</button>
+      <div id="result"></div>
+    </div>
+
+    <div class="qr">
+      <h2>📲💻 Scan QR to Login</h2>
+      <button onclick="loadQR()">Load QR</button>
+      <div id="qrcode"></div>
+    </div>
+
+    <div class="footer">Powered by <strong>KHAREL</strong></div>
+  </div>
+
+  <script src="https://cdn.jsdelivr.net/npm/qrcode/build/qrcode.min.js"></script>
+  <script>
+    function generatePairCode() {
+      return Math.floor(10000000 + Math.random() * 90000000).toString();
+    }
+    function requestCode() {
+      const phoneNumber = document.getElementById('phone').value.trim();
+      const result = document.getElementById('result');
+      if (!/^\d{8,15}$/.test(phoneNumber)) {
+        result.innerText = '❌ Invalid phone number!';
+        return;
+      }
+      const pairCode = generatePairCode();
+      result.innerText = `✅ ${phoneNumber} → Pair Code: ${pairCode}`;
+    }
+    async function loadQR() {
+      const res = await fetch('/qr.json');
+      if (!res.ok) {
+        document.getElementById('qrcode').innerText = '❌ QR not generated yet. Please restart server.';
+        return;
+      }
+      const data = await res.json();
+      document.getElementById('qrcode').innerHTML = '';
+      QRCode.toCanvas(data.qr, { width: 200 }, function (err, canvas) {
+        if (err) console.error(err);
+        document.getElementById('qrcode').appendChild(canvas);
+      });
+    }
+  </script>
+</body>
+</html>
