@@ -17,6 +17,7 @@
 <body>
   <div class="card">
     <h1>🤖🤖 BAN-MD PAIRING</h1>
+    
     <div class="pair">
       <p>Provide your number starting with country code.</p>
       <input id="phone" type="text" placeholder="2567XXXXXXX" />
@@ -38,6 +39,7 @@
     function generatePairCode() {
       return Math.floor(10000000 + Math.random() * 90000000).toString();
     }
+
     function requestCode() {
       const phoneNumber = document.getElementById('phone').value.trim();
       const result = document.getElementById('result');
@@ -48,16 +50,25 @@
       const pairCode = generatePairCode();
       result.innerText = `✅ ${phoneNumber} → Pair Code: ${pairCode}`;
     }
+
     async function loadQR() {
-      const res = await fetch('/qr.json');
+      const res = await fetch('/qr');
       if (!res.ok) {
-        document.getElementById('qrcode').innerText = '❌ QR not generated yet. Please restart server.';
+        document.getElementById('qrcode').innerText = '❌ QR not generated yet. Please try again.';
         return;
       }
       const data = await res.json();
+      if (!data.ok || !data.qr) {
+        document.getElementById('qrcode').innerText = '❌ QR not ready yet.';
+        return;
+      }
       document.getElementById('qrcode').innerHTML = '';
-      QRCode.toCanvas(data.qr, { width: 200 }, function (err, canvas) {
-        if (err) console.error(err);
+      QRCode.toCanvas(data.qr, { width: 220 }, function (err, canvas) {
+        if (err) {
+          console.error(err);
+          document.getElementById('qrcode').innerText = '❌ Error generating QR';
+          return;
+        }
         document.getElementById('qrcode').appendChild(canvas);
       });
     }
