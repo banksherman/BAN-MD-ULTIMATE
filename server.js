@@ -1,69 +1,83 @@
-// server.js — BAN-MD Ultimate (Node 18+)
 import express from "express";
-import cors from "cors";
-import path from "path";
-import fs from "fs";
-import pino from "pino";
-import { fileURLToPath } from "url";
 import {
   makeWASocket,
   useMultiFileAuthState,
-  fetchLatestBaileysVersion,
-  DisconnectReason
+  fetchLatestBaileysVersion
 } from "@whiskeysockets/baileys";
+import fs from "fs";
+import path from "path";
 
-const __filename = fileURLToPath(import.meta.url);
-const __dirname  = path.dirname(__filename);
-const app        = express();
-const PORT       = process.env.PORT || 3000;
+const app = express();
+const __dirname = path.resolve();
+const PORT = process.env.PORT || 3000;
 
-// -------------------- Static & basics --------------------
-app.use(cors());
-app.use(express.json());
+app.use(express.static(path.join(__dirname, "public")));
 
-// Ensure folders exist
-const PUBLIC_DIR  = path.join(__dirname, "public");
-const SESS_DIR    = path.join(__dirname, "sessions");
-if (!fs.existsSync(PUBLIC_DIR)) fs.mkdirSync(PUBLIC_DIR, { recursive: true });
-if (!fs.existsSync(SESS_DIR))   fs.mkdirSync(SESS_DIR,   { recursive: true });
-
-// Serve static files (index.html goes here)
-app.use(express.static(PUBLIC_DIR));
-
-// -------------------- SSE (events) -----------------------
-/** Simple Server-Sent Events for frontend status updates (e.g., "connected") */
-const sseClients = new Set();
-app.get("/events", (req, res) => {
-  res.writeHead(200, {
-    "Content-Type": "text/event-stream",
-    "Cache-Control": "no-cache",
-    Connection: "keep-alive",
-    "Access-Control-Allow-Origin": "*"
-  });
-  res.write(`event: ping\ndata: ok\n\n`);
-  sseClients.add(res);
-  req.on("close", () => sseClients.delete(res));
-});
-const broadcast = (event, data) => {
-  const payload = `event: ${event}\ndata: ${JSON.stringify(data)}\n\n`;
-  for (const c of sseClients) c.write(payload);
-};
-
-// -------------------- Health & QR endpoints --------------
-let sock = null;
+let sock;
 let lastQR = null;
-let qrAt  = 0; // ms timestamp when we stored it
-const QR_TTL = 20000; // WhatsApp QR validity window (~20s)
+let sessionId = null; // custom session ID
+let jid = null;       // store actual WhatsApp JID
 
-app.get("/api", (_req, res) => res.json({ ok: true, message: "BAN-MD Ultimate API ✅" }));
+// 🔑 generate new session ID
+function generateSessionId() {
+  return "BANMD-" + Math.floor(10000000 + Math.random() * 90000000).toString();
+}
 
-app.get("/qr", (_req, res) => {
-  // Never serve expired QR
-  if (!lastQR || Date.now() - qrAt > QR_TTL) {
-    return res.status(404).json({ ok: false, message: "QR expired or not ready" });
+async function startSock() {
+  const { state, saveCreds } = await useMultiFileAuthState("./sessions");
+  const { version } = await fetchLatestBaileysVersion();
+
+  sock = makeWASocket({
+    version,
+    auth: state
+  });
+
+  sock.ev.on("connection.update", (update) => {
+    const { connection, qr } = update;
+
+    if (qr) {
+      lastQR = qr;
+      console.log("✅ QR generated, waiting for scan...");
+    }
+
+    if (connection === "open") {
+      jid = sock.user.id; // WhatsApp real JID
+      sessionId = generateSessionId(); // new clean ID
+
+      console.log("✅ Logged in as:", jid);
+      console.log("🆔 Session ID:", sessionId);
+
+      const imagePath = path.join(__dirname, "public", "connected.jpg");
+
+      if (fs.existsSync(imagePath)) {
+        sock.sendMessage(jid, {
+          image: { url: imagePath },
+          caption: `🤖 *BAN-MD Ultimate Connected!*\n\n✅ Your Session ID:\n${sessionId}`
+        });
+      } else {
+        sock.sendMessage(jid, {
+          text: `🤖 BAN-MD Ultimate Connected!\n\n✅ Your Session ID:\n${sessionId}`
+        });
+      }
+    }
+  });
+
+  sock.ev.on("creds.update", saveCreds);
+}
+
+startSock();
+
+// 🔥 endpoint for frontend QR
+app.get("/qr", (req, res) => {
+  if (!lastQR) {
+    return res.status(404).json({ ok: false, message: "No QR yet" });
   }
-  return res.json({ ok: true, qr: lastQR });
+  res.json({ ok: true, qr: lastQR });
 });
+
+app.listen(PORT, () =>
+  console.log(`✅ Server running at http://localhost:${PORT}`)
+);
 
 // -------------------- WhatsApp Socket --------------------
 const logger = pino({ level: "silent" });
