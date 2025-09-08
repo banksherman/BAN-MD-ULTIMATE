@@ -1,15 +1,17 @@
 {
   "name": "ban-md-ultimate",
   "version": "1.0.0",
+  "description": "BAN-MD Ultimate WhatsApp Bot",
   "main": "server.js",
   "type": "module",
   "scripts": {
     "start": "node server.js"
   },
   "dependencies": {
-    "@whiskeysockets/baileys": "^6.6.0",
-    "dotenv": "^16.0.3",
+    "@whiskeysockets/baileys": "^6.7.10",
     "express": "^4.18.2",
-    "pino": "^8.7.0"
+    "pino": "^8.15.0",
+    "qrcode": "^1.5.3",
+    "dotenv": "^16.3.1"
   }
 }
