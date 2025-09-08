@@ -5,16 +5,16 @@
   "main": "server.js",
   "type": "module",
   "scripts": {
-    "start": "node server.js",
-    "heroku-postbuild": "npm install --force"
-  },
-  "engines": {
-    "node": "20.x"
+    "start": "node server.js"
   },
   "dependencies": {
-    "@whiskeysockets/baileys": "^6.7.10",
-    "express": "^4.18.2",
-    "pino": "^8.15.0",
-    "qrcode": "^1.5.3"
+    "@whiskeysockets/baileys": "6.7.10",
+    "express": "4.18.2",
+    "pino": "8.15.0",
+    "qrcode": "1.5.3"
+  },
+  "engines": {
+    "node": "20.x",
+    "npm": "10.x"
   }
 }
