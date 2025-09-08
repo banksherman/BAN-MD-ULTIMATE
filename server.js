@@ -1,4 +1,5 @@
 // BAN-MD Ultimate Bot Server
+// BAN-MD Ultimate Bot Server
 // Node.js v20+ recommended
 
 import express from "express";
@@ -25,14 +26,19 @@ let qrAt = null;
 let jid = null;
 const QR_TTL = 20_000;
 const SESS_DIR = "./sessions";
+let antiLinkEnabled = false;
+let startTime = Date.now();
 
 // -------------------- Helpers --------------------
 function generateSessionId() {
   return "BANMD-" + Math.floor(10000000 + Math.random() * 90000000).toString();
 }
 
-function broadcast(event, data) {
-  console.log(`📢 Event: ${event}`, data);
+function formatRuntime(ms) {
+  let sec = Math.floor(ms / 1000) % 60;
+  let min = Math.floor(ms / (1000 * 60)) % 60;
+  let hrs = Math.floor(ms / (1000 * 60 * 60));
+  return `${hrs}h ${min}m ${sec}s`;
 }
 
 // -------------------- Commands Framework --------------------
@@ -43,21 +49,54 @@ const commands = {
       await sock.sendMessage(from, { text: "🏓 Pong! BAN-MD Ultimate is alive." });
     }
   },
+  alive: {
+    description: "Check bot status",
+    execute: async (sock, from) => {
+      await sock.sendMessage(from, { text: "✅ Yes, I'm alive — BAN-MD Ultimate 😀" });
+    }
+  },
   menu: {
     description: "Show available commands",
     execute: async (sock, from) => {
       const menu = Object.keys(commands)
         .map((cmd) => `• !${cmd} → ${commands[cmd].description}`)
         .join("\n");
-      await sock.sendMessage(from, {
-        text: `🤖 *BAN-MD Ultimate*\n\n${menu}`
-      });
+      await sock.sendMessage(from, { text: `🤖 *BAN-MD Ultimate Menu*\n\n${menu}` });
     }
   },
   help: {
     description: "Alias for !menu",
     execute: async (sock, from) => {
       return commands.menu.execute(sock, from);
+    }
+  },
+  owner: {
+    description: "Show bot owner info",
+    execute: async (sock, from) => {
+      await sock.sendMessage(from, {
+        text: `👑 Owner: BAN-MD Ultimate Dev\n📞 wa.me/256726212154`
+      });
+    }
+  },
+  runtime: {
+    description: "Show bot uptime",
+    execute: async (sock, from) => {
+      const uptime = formatRuntime(Date.now() - startTime);
+      await sock.sendMessage(from, { text: `⏳ Uptime: ${uptime}` });
+    }
+  },
+  antilink: {
+    description: "Enable/disable anti-link",
+    execute: async (sock, from, body) => {
+      if (body.includes("on")) {
+        antiLinkEnabled = true;
+        await sock.sendMessage(from, { text: "✅ Anti-link is *ON*" });
+      } else if (body.includes("off")) {
+        antiLinkEnabled = false;
+        await sock.sendMessage(from, { text: "❌ Anti-link is *OFF*" });
+      } else {
+        await sock.sendMessage(from, { text: "Usage: !antilink on/off" });
+      }
     }
   }
 };
@@ -73,14 +112,11 @@ async function startSock() {
     logger: pino({ level: "silent" }),
     browser: ["BAN-MD-Ultimate", "Chrome", "120.0.0.0"],
     markOnlineOnConnect: true,
-    syncFullHistory: false,
-    connectTimeoutMs: 30_000,
-    keepAliveIntervalMs: 15_000
+    syncFullHistory: false
   });
 
   sock.ev.on("creds.update", saveCreds);
 
-  // Connection updates
   sock.ev.on("connection.update", async (update) => {
     const { connection, lastDisconnect, qr } = update;
 
@@ -99,24 +135,10 @@ async function startSock() {
       console.log("✅ WhatsApp connected:", jid);
       console.log("🆔 Session ID:", sessionId);
 
-      broadcast("connected", { jid, sessionId });
-
-      // Welcome DM
-      const imagePath = path.join(__dirname, "public", "connected.jpg");
-      try {
-        if (fs.existsSync(imagePath)) {
-          await sock.sendMessage(jid, {
-            image: fs.readFileSync(imagePath),
-            caption: `🤖 *BAN-MD Ultimate Connected!*\n\n✅ Session ID:\n${sessionId}\n🎵 Welcome aboard!`
-          });
-        } else {
-          await sock.sendMessage(jid, {
-            text: `🤖 *BAN-MD Ultimate Connected!*\n\n✅ Session ID:\n${sessionId}\n🎵 Welcome aboard!`
-          });
-        }
-      } catch (err) {
-        console.error("❌ Failed to send welcome DM:", err);
-      }
+      // Send Welcome DM
+      await sock.sendMessage(jid, {
+        text: `🤖 *BAN-MD Ultimate Connected!*\n\n🆔 Session ID:\n${sessionId}\n🎵 Welcome aboard!`
+      });
 
       lastQR = null;
     }
@@ -149,21 +171,34 @@ async function startSock() {
           ? msg.message.extendedTextMessage.text
           : "";
 
+      if (!body) return;
+
       console.log(`💬 Message from ${from}: ${body}`);
+
+      // 🚫 Anti-link filter
+      if (antiLinkEnabled && body.includes("chat.whatsapp.com")) {
+        await sock.sendMessage(from, { text: "⚠️ No links allowed here!" });
+        try {
+          await sock.groupParticipantsUpdate(from, [msg.key.participant], "remove");
+        } catch (err) {
+          console.error("❌ Failed to kick:", err);
+        }
+        return;
+      }
 
       // Command handler
       if (body.startsWith("!")) {
-        const cmd = body.slice(1).trim().toLowerCase();
+        const cmd = body.slice(1).trim().split(" ")[0].toLowerCase();
         if (commands[cmd]) {
-          await commands[cmd].execute(sock, from);
+          await commands[cmd].execute(sock, from, body, msg);
         } else {
           await sock.sendMessage(from, {
-            text: `❌ Unknown command: *!${cmd}*\nType *!menu* to see available commands.`
+            text: `❌ Unknown command: *!${cmd}*\nType *!menu* for help.`
           });
         }
       }
     } catch (err) {
-      console.error("❌ Error in message handler:", err);
+      console.error("❌ Error in handler:", err);
     }
   });
 }
@@ -193,30 +228,3 @@ process.on("unhandledRejection", (e) => console.error("unhandledRejection", e));
 app.listen(PORT, () => {
   console.log(`✅ Server running on http://localhost:${PORT}`);
 });
-
-// -------------------- API Endpoints --------------------
-app.get("/qr", (req, res) => {
-  if (!lastQR) return res.status(404).json({ ok: false, message: "No QR available" });
-
-  const age = Date.now() - qrAt;
-  if (age > QR_TTL) {
-    lastQR = null;
-    return res.status(410).json({ ok: false, message: "QR expired" });
-  }
-
-  res.json({ ok: true, qr: lastQR, ttl: QR_TTL - age });
-});
-
-// -------------------- Boot --------------------
-startSock().catch((e) => {
-  console.error("startSock failed:", e);
-  process.exit(1);
-});
-
-process.on("uncaughtException", (e) => console.error("uncaughtException", e));
-process.on("unhandledRejection", (e) => console.error("unhandledRejection", e));
-
-app.listen(PORT, () => {
-  console.log(`✅ Server running on http://localhost:${PORT}`);
-});
-
