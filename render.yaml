@@ -1,0 +1,7 @@
+services:
+  - type: web
+    name: ban-md-ultimate
+    env: node
+    plan: free
+    buildCommand: "npm install"
+    startCommand: "npm start"
