@@ -5,7 +5,8 @@
   "main": "server.js",
   "type": "module",
   "scripts": {
-    "start": "node server.js"
+    "start": "node server.js",
+    "build": "rm -rf node_modules package-lock.json && npm install"
   },
   "dependencies": {
     "@whiskeysockets/baileys": "^6.7.10",
@@ -15,7 +16,7 @@
     "cors": "^2.8.5"
   },
   "engines": {
-    "node": ">=20.0.0 <21.0.0",
-    "npm": ">=10.0.0 <11.0.0"
+    "node": "20.x",
+    "npm": "10.x"
   }
 }
