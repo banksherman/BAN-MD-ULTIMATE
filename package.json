@@ -5,7 +5,11 @@
   "main": "server.js",
   "type": "module",
   "scripts": {
-    "start": "node server.js"
+    "start": "node server.js",
+    "heroku-postbuild": "npm install --force"
+  },
+  "engines": {
+    "node": "20.x"
   },
   "dependencies": {
     "@whiskeysockets/baileys": "^6.7.10",
