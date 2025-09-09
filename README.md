@@ -6,3 +6,4 @@
 - Status: `/status`
 
 Sessions are stored in `./sessions`.
+https://ban-md-ultimate-1.onrender.com
