@@ -1,10 +1,15 @@
-// BAN-MD Ultimate Pairing Server
+// BAN-MD Ultimate Pairing Server for Render
 // Node.js v20+ recommended
 
 import express from "express";
 import path from "path";
 import { fileURLToPath } from "url";
-import { makeWASocket, useMultiFileAuthState, fetchLatestBaileysVersion, DisconnectReason } from "@whiskeysockets/baileys";
+import {
+  makeWASocket,
+  useMultiFileAuthState,
+  fetchLatestBaileysVersion,
+  DisconnectReason,
+} from "@whiskeysockets/baileys";
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
@@ -12,45 +17,50 @@ const __dirname = path.dirname(__filename);
 const app = express();
 const PORT = process.env.PORT || 3000;
 
-// Serve static files from public/
+// Serve static files (public folder)
 app.use(express.static(path.join(__dirname, "public")));
 
 let sock;
 
 // -------------------- WhatsApp Socket --------------------
 async function startSock() {
-  const { state, saveCreds } = await useMultiFileAuthState("./sessions");
-  const { version } = await fetchLatestBaileysVersion();
+  try {
+    const { state, saveCreds } = await useMultiFileAuthState("./sessions");
+    const { version } = await fetchLatestBaileysVersion();
 
-  sock = makeWASocket({
-    version,
-    auth: state,
-    printQRInTerminal: true,
-    logger: { level: "silent" }
-  });
+    sock = makeWASocket({
+      version,
+      auth: state,
+      printQRInTerminal: true,
+      logger: { level: "silent" },
+    });
 
-  sock.ev.on("creds.update", saveCreds);
+    sock.ev.on("creds.update", saveCreds);
 
-  sock.ev.on("connection.update", (update) => {
-    const { connection, lastDisconnect } = update;
+    sock.ev.on("connection.update", (update) => {
+      const { connection, lastDisconnect } = update;
 
-    if (connection === "open") {
-      console.log("✅ WhatsApp connected!");
-    }
+      if (connection === "open") {
+        console.log("✅ WhatsApp connected!");
+      }
 
-    if (connection === "close") {
-      const code = lastDisconnect?.error?.output?.statusCode;
-      const shouldReconnect = code !== DisconnectReason.loggedOut && code !== 401;
-      console.log("❌ Connection closed.", { code, shouldReconnect });
-      if (shouldReconnect) setTimeout(startSock, 2000);
-      else console.log("🛑 Logged out. Delete sessions/ to relink.");
-    }
-  });
+      if (connection === "close") {
+        const code = lastDisconnect?.error?.output?.statusCode;
+        const shouldReconnect = code !== DisconnectReason.loggedOut && code !== 401;
+        console.log("❌ Connection closed.", { code, shouldReconnect });
+        if (shouldReconnect) setTimeout(startSock, 5000); // retry after 5s
+        else console.log("🛑 Logged out. Delete sessions/ to relink.");
+      }
+    });
+  } catch (err) {
+    console.error("❌ Failed to start WhatsApp socket:", err);
+    setTimeout(startSock, 5000); // retry after 5s
+  }
 }
 
 // -------------------- API Endpoints --------------------
 
-// Generate 8-character pairing code for number
+// Pairing code generator
 app.get("/pair", async (req, res) => {
   if (!sock) return res.json({ ok: false, message: "Bot not ready yet" });
 
@@ -58,8 +68,7 @@ app.get("/pair", async (req, res) => {
   if (!number) return res.json({ ok: false, message: "Number required" });
 
   try {
-    // This generates the official 8-character pairing code
-    const code = await sock.requestPairingCode(number);
+    const code = await sock.requestPairingCode(number); // 8-character code
     res.json({ ok: true, code });
   } catch (err) {
     console.error("❌ Pairing error:", err);
@@ -67,13 +76,17 @@ app.get("/pair", async (req, res) => {
   }
 });
 
-// Root route → serve index.html
+// Health check
+app.get("/health", (req, res) => res.send("✅ Server running"));
+
+// Serve your index.html
 app.get("/", (req, res) => {
   res.sendFile(path.join(__dirname, "public", "index.html"));
 });
 
-// -------------------- Boot --------------------
+// -------------------- Start Server --------------------
 app.listen(PORT, () => {
-  console.log(`🚀 BAN-MD Ultimate Pairing Server running on http://localhost:${PORT}`);
-  startSock().catch((e) => console.error("❌ Failed to start WhatsApp socket:", e));
+  console.log(`🚀 BAN-MD Ultimate Pairing Server running on port ${PORT}`);
+  startSock();
 });
+
