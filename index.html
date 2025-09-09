@@ -1,0 +1,50 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <title>BAN-MD Ultimate Pair</title>
+  <style>
+    body { font-family: Arial, sans-serif; text-align: center; background: #0d1117; color: #fff; }
+    .box { margin: 100px auto; padding: 30px; background: #161b22; border-radius: 10px; width: 400px; }
+    input { width: 90%; padding: 10px; border-radius: 5px; border: none; margin-bottom: 10px; }
+    button { padding: 10px 20px; border: none; border-radius: 5px; background: #2ea043; color: white; cursor: pointer; }
+    button:hover { background: #3fb950; }
+    .code { margin-top: 20px; font-size: 22px; font-weight: bold; color: #58a6ff; }
+    footer { margin-top: 30px; font-size: 13px; color: #888; }
+  </style>
+</head>
+<body>
+  <div class="box">
+    <h1>BAN-MD PAIR</h1>
+    <p>🔗 Link a New Device with your WhatsApp Number</p>
+    <input id="number" placeholder="+2567XXXXXXX" />
+    <br>
+    <button onclick="generate()">Generate Code</button>
+    <div id="result"></div>
+  </div>
+
+  <footer>
+    © 2025 BAN-MD. Created By <b>Kharel Herman Banks</b>
+  </footer>
+
+  <script>
+    async function generate() {
+      const num = document.getElementById("number").value;
+      if (!num) return alert("Enter your number with country code");
+      document.getElementById("result").innerHTML = "⏳ Processing...";
+      const res = await fetch(`/pair?number=${encodeURIComponent(num)}`);
+      const data = await res.json();
+      if (data.ok) {
+        document.getElementById("result").innerHTML = `
+          <p>Your Pairing Code:</p>
+          <div class="code">${data.code}</div>
+          <p>⚡ Open WhatsApp → Settings → Linked Devices → Link a Device → 
+          "Link with phone number instead" and enter this code.</p>
+        `;
+      } else {
+        document.getElementById("result").innerHTML = "❌ Failed: " + data.message;
+      }
+    }
+  </script>
+</body>
+</html>
