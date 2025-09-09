@@ -1,185 +1,46 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-<meta charset="UTF-8" />
-<meta name="viewport" content="width=device-width, initial-scale=1.0" />
-<title>BAN-MD Ultimate QR Login</title>
-<script src="https://cdn.jsdelivr.net/npm/qrcode/build/qrcode.min.js"></script>
-<style>
-  body { font-family: Arial, sans-serif; background: #0f172a; color: #e2e8f0; display: flex; flex-direction: column; align-items: center; justify-content: center; min-height: 100vh; text-align: center; padding: 20px;}
-  h1 { color: #22c55e; margin-bottom: 10px; }
-  #qrcode, #sessionQR { margin-top: 20px; padding: 16px; background: white; border-radius: 12px; box-shadow: 0 4px 20px rgba(0,0,0,0.3); }
-  .connected { font-size: 1.4em; color: #22c55e; margin-top: 20px; font-weight: bold; }
-  .disconnected { font-size: 1.2em; color: #f87171; margin-top: 20px; font-weight: bold; }
-  button { margin: 8px; padding: 8px 14px; font-size: 1em; border-radius: 8px; border: none; background: #22c55e; color: white; cursor: pointer; }
-  button:hover { background: #16a34a; }
-  #menuContainer { margin-top: 20px; max-width: 400px; width: 100%; text-align: left; }
-  .category { background: #1e293b; padding: 8px 12px; border-radius: 8px; margin: 4px 0; cursor: pointer; }
-  .category:hover { background: #334155; }
-  #commandsList { margin-top: 10px; background: #1e293b; padding: 10px; border-radius: 10px; max-height: 300px; overflow-y: auto; white-space: pre-line; }
-</style>
+  <meta charset="UTF-8">
+  <title>BAN-MD Ultimate Pair</title>
+  <style>
+    body { font-family: Arial, sans-serif; text-align: center; background: #0d1117; color: #fff; }
+    .box { margin: 100px auto; padding: 30px; background: #161b22; border-radius: 10px; width: 400px; }
+    input { width: 90%; padding: 10px; border-radius: 5px; border: none; margin-bottom: 10px; }
+    button { padding: 10px 20px; border: none; border-radius: 5px; background: #2ea043; color: white; cursor: pointer; }
+    button:hover { background: #3fb950; }
+    .code { margin-top: 20px; font-size: 22px; font-weight: bold; color: #58a6ff; }
+  </style>
 </head>
 <body>
-<h1>🤖 BAN-MD Ultimate QR Login</h1>
-<p id="instruction">Scan this QR code with WhatsApp to connect</p>
-<canvas id="qrcode"></canvas>
-<p id="status"></p>
+  <div class="box">
+    <h1>BAN-MD Ultimate Pair</h1>
+    <p>Link a new device with your WhatsApp number:</p>
+    <input id="number" placeholder="+94712345678" />
+    <br>
+    <button onclick="generate()">Generate Code</button>
+    <div id="result"></div>
+  </div>
 
-<h2>Session QR (multi-login)</h2>
-<canvas id="sessionQR" style="display:none;"></canvas>
-<p id="sessionText"></p>
-
-<button id="menuBtn">📜 Show Menu</button>
-<button id="reconnectBtn">🔄 Reconnect</button>
-
-<div id="menuContainer"></div>
-<div id="commandsList"></div>
-
-<script>
-async function fetchStatus() {
-  try {
-    const res = await fetch("/status");
-    const data = await res.json();
-    const canvas = document.getElementById("qrcode");
-    const instruction = document.getElementById("instruction");
-    const status = document.getElementById("status");
-
-    if (data.connected) {
-      canvas.style.display = "none";
-      instruction.style.display = "none";
-      status.innerHTML = `✅ <span class="connected">Connected as ${data.jid}</span>`;
-      await fetchSessionQR();
-      return true;
-    } else {
-      canvas.style.display = "block";
-      instruction.style.display = "block";
-      status.innerHTML = `<span class="disconnected">❌ Disconnected. Please scan a new QR.</span>`;
-      document.getElementById("sessionQR").style.display = "none";
-      document.getElementById("sessionText").innerHTML = "";
-      return false;
+  <script>
+    async function generate() {
+      const num = document.getElementById("number").value;
+      if (!num) return alert("Enter your number with country code");
+      document.getElementById("result").innerHTML = "⏳ Processing...";
+      const res = await fetch(`/pair?number=${encodeURIComponent(num)}`);
+      const data = await res.json();
+      if (data.ok) {
+        document.getElementById("result").innerHTML = `
+          <p>Your Pairing Code:</p>
+          <div class="code">${data.code}</div>
+          <p>⚡ Open WhatsApp → Settings → Linked Devices → Link a Device → 
+          "Link with phone number instead" and enter this code.</p>
+        `;
+      } else {
+        document.getElementById("result").innerHTML = "❌ Failed: " + data.message;
+      }
     }
-  } catch (err) {
-    console.error("Status check failed", err);
-    return false;
-  }
-}
-
-async function fetchQR() {
-  const status = document.getElementById("status");
-  const canvas = document.getElementById("qrcode");
-
-  const connected = await fetchStatus();
-  if (connected) return;
-
-  try {
-    const res = await fetch("/qr");
-    const data = await res.json();
-
-    if (!data.ok) {
-      status.innerHTML = "❌ " + data.message;
-      return;
-    }
-
-    QRCode.toCanvas(canvas, data.qr, { width: 250 }, (err) => {
-      if (err) console.error(err);
-    });
-
-    status.innerHTML = `✅ QR ready. Expires in ${(data.ttl / 1000).toFixed(0)}s`;
-  } catch (err) {
-    status.innerHTML = "⚠️ Error fetching QR";
-    console.error(err);
-  }
-}
-
-async function fetchSessionQR() {
-  const canvas = document.getElementById("sessionQR");
-  const sessionText = document.getElementById("sessionText");
-
-  try {
-    const res = await fetch("/session-qr");
-    const data = await res.json();
-
-    if (!data.ok) {
-      canvas.style.display = "none";
-      sessionText.innerHTML = "";
-      return;
-    }
-
-    const img = new Image();
-    img.src = data.qr;
-    img.onload = () => {
-      const ctx = canvas.getContext("2d");
-      canvas.width = img.width;
-      canvas.height = img.height;
-      ctx.clearRect(0, 0, canvas.width, canvas.height);
-      ctx.drawImage(img, 0, 0);
-      canvas.style.display = "block";
-    };
-
-    sessionText.innerHTML = `📌 Session ID: ${data.sessionId}`;
-  } catch (err) {
-    console.error("Failed to fetch session QR", err);
-  }
-}
-
-// ---------------- Menu / Categories ----------------
-document.getElementById("menuBtn").addEventListener("click", async () => {
-  const res = await fetch("/status");
-  const data = await res.json();
-  if (!data.connected) { alert("Bot not connected"); return; }
-
-  const categories = [
-    "AI","MEDIA EDIT","GROUP","CODING","CONVERT CMDS","DOWNLOAD","EDITING","FUN",
-    "GENERAL","IMAGES","LOGO","MODS","OWNER","REACTION","SCREENSHOTS","SEARCH",
-    "SPORTS","STALKER","SYSTEM","WA CHANNEL","TOOLS","TRADE","TTS","UTILITY","SETTINGS"
-  ];
-
-  const menuContainer = document.getElementById("menuContainer");
-  menuContainer.innerHTML = "<h3>📂 Categories</h3>";
-  categories.forEach((cat, i) => {
-    const div = document.createElement("div");
-    div.className = "category";
-    div.textContent = `${i+1}. ${cat}`;
-    div.dataset.id = i+1;
-    div.addEventListener("click", () => fetchCategoryCommands(i+1));
-    menuContainer.appendChild(div);
-  });
-});
-
-// ---------------- Fetch commands for a category ----------------
-async function fetchCategoryCommands(catId) {
-  const res = await fetch(`/status`);
-  const data = await res.json();
-  if (!data.connected) { alert("Bot not connected"); return; }
-
-  try {
-    const cmdRes = await fetch(`/qr`); // placeholder for now
-    // Instead, simulate fetching from backend: category commands are placeholders
-    const commands = Array.from({length: 10}, (_,i)=>`CMD_${catId}_${i+1}`);
-    document.getElementById("commandsList").innerHTML = `📌 Commands for category ${catId}:\n\n${commands.join("\n")}`;
-  } catch (err) {
-    console.error(err);
-  }
-}
-
-// Reconnect
-document.getElementById("reconnectBtn").addEventListener("click", async () => {
-  const status = document.getElementById("status");
-  status.innerHTML = "🔄 Reconnecting...";
-  try {
-    const res = await fetch("/reconnect", { method: "POST" });
-    const data = await res.json();
-    status.innerHTML = data.ok ? "♻️ Reconnecting..." : "❌ Failed: " + data.error;
-  } catch (err) {
-    status.innerHTML = "❌ Error reconnecting";
-    console.error(err);
-  }
-});
-
-// Poll QR every 5s
-setInterval(fetchQR, 5000);
-fetchQR();
-</script>
+  </script>
 </body>
 </html>
 
