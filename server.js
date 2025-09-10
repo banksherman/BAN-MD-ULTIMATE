@@ -22,14 +22,13 @@ app.use(express.static(path.join(__dirname, "public")));
 let sock;
 let lastQR = null;
 let qrAt = null;
-let jid = null;
 let botReady = false;
 
 const QR_TTL = 20_000; // QR valid for 20s
 const SESS_DIR = "./sessions";
 const PREFIX = "!"; // command prefix
 
-// Store pairing codes
+// Store pairing codes in memory
 const pairCodes = new Map(); // code => { number, timestamp }
 
 // Commands
@@ -38,10 +37,6 @@ const commands = ["menu", "ping", "alive"];
 // ---------------- Helpers ----------------
 function generateSessionId() {
   return "BANMD-" + Math.floor(10000000 + Math.random() * 90000000).toString();
-}
-
-function broadcast(event, data) {
-  console.log(`📢 Event: ${event}`, data);
 }
 
 // ---------------- WhatsApp Socket ----------------
@@ -62,7 +57,6 @@ async function startSock() {
 
   sock.ev.on("creds.update", saveCreds);
 
-  // Connection updates
   sock.ev.on("connection.update", async (update) => {
     const { connection, lastDisconnect, qr } = update;
 
@@ -77,7 +71,7 @@ async function startSock() {
     }
 
     if (connection === "open") {
-      jid = sock?.user?.id;
+      const jid = sock?.user?.id;
       const sessionId = generateSessionId();
       botReady = true;
       console.log("✅ WhatsApp connected:", jid);
@@ -108,14 +102,13 @@ async function startSock() {
       const code = lastDisconnect?.error?.output?.statusCode;
       const shouldReconnect = code !== DisconnectReason.loggedOut && code !== 401;
       console.log("❌ Connection closed.", { code, shouldReconnect });
-
       botReady = false;
       if (shouldReconnect) setTimeout(startSock, 2000);
       else console.log("🛑 Logged out. Delete sessions/ to relink.");
     }
   });
 
-  // Message handler
+  // ---------------- Message Handler ----------------
   sock.ev.on("messages.upsert", async (m) => {
     try {
       const msg = m.messages[0];
@@ -131,15 +124,8 @@ async function startSock() {
         const cmd = text.slice(PREFIX.length).trim().toLowerCase();
 
         if (cmd === "menu") {
-          let contactName = from.split("@")[0];
-          let menuMessage = `Hey there 😀💻 ${contactName}\n\n`;
-          menuMessage += `╭───〔  *BAN-MD Ultimate* 〕──────┈⊷\n`;
-          menuMessage += `├──────────────\n`;
-          menuMessage += `│✵│▸ 𝗣𝗿𝗲𝗳𝗶𝘅: [ ${PREFIX} ]\n`;
-          menuMessage += `│✵│▸ 𝗖𝗼𝗺𝗺𝗮𝗻𝗱𝘀: ${commands.length}\n`;
-          menuMessage += "╰─────────────────────⊷\n";
-          menuMessage += commands.map(c => `💠 ${PREFIX}${c}`).join("\n");
-
+          const contactName = from.split("@")[0];
+          const menuMessage = `Hey there 😀💻 ${contactName}\n\nCommands: ${commands.map(c => PREFIX + c).join(", ")}`;
           const imagePath = path.join(__dirname, "public", "menu.jpg");
           if (fs.existsSync(imagePath)) {
             await sock.sendMessage(from, { image: fs.readFileSync(imagePath), caption: menuMessage });
@@ -162,7 +148,6 @@ async function startSock() {
           return;
         }
 
-        // Unknown command
         await sock.sendMessage(from, { text: `❌ Unknown command. Type ${PREFIX}menu to see all commands.` });
       }
 
@@ -173,6 +158,8 @@ async function startSock() {
 }
 
 // ---------------- API Endpoints ----------------
+
+// QR endpoint
 app.get("/qr", (req, res) => {
   if (!lastQR) return res.status(404).json({ ok: false, message: "No QR available" });
   const age = Date.now() - qrAt;
@@ -183,12 +170,14 @@ app.get("/qr", (req, res) => {
   res.json({ ok: true, qr: lastQR, ttl: QR_TTL - age });
 });
 
+// Status endpoint
 app.get("/status", (req, res) => {
   res.json({ ready: botReady });
 });
 
+// Pairing code endpoint
 app.get("/pair", (req, res) => {
-  if (!botReady) return res.json({ ok: false, message: "Bot not ready yet. Try again in a few seconds." });
+  if (!botReady) return res.json({ ok: false, message: "Bot not ready yet. Scan QR and wait a few seconds." });
   const number = req.query.number;
   if (!number) return res.json({ ok: false, message: "Provide your WhatsApp number" });
 
@@ -207,7 +196,5 @@ startSock().catch((e) => {
 process.on("uncaughtException", (e) => console.error("uncaughtException", e));
 process.on("unhandledRejection", (e) => console.error("unhandledRejection", e));
 
-app.listen(PORT, () => {
-  console.log(`✅ Server running on http://localhost:${PORT}`);
-});
+app.listen(PORT, () => console.log(`✅ Server running on http://localhost:${PORT}`));
 
