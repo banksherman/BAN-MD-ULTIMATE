@@ -1,82 +1,167 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-  <meta charset="UTF-8">
-  <title>BAN-MD Ultimate Pair</title>
-  <style>
-    body {
-      font-family: Arial, sans-serif;
-      text-align: center;
-      background: linear-gradient(-45deg, #0d1117, #1b1f27, #0d1117, #1b1f27);
-      background-size: 400% 400%;
-      animation: gradientBG 10s ease infinite;
-      color: #fff;
-    }
-    @keyframes gradientBG {
-      0% {background-position:0% 50%;}
-      50% {background-position:100% 50%;}
-      100% {background-position:0% 50%;}
-    }
-    .box {
-      margin: 100px auto;
-      padding: 30px;
-      background: rgba(0,0,0,0.6);
-      border-radius: 10px;
-      width: 400px;
-    }
-    input { width: 90%; padding: 10px; border-radius: 5px; border: none; margin-bottom: 10px; }
-    button { padding: 10px 20px; border: none; border-radius: 5px; background: #2ea043; color: white; cursor: pointer; }
-    button:hover { background: #3fb950; }
-    .code { margin-top: 20px; font-size: 22px; font-weight: bold; color: #58a6ff; }
-    footer { margin-top: 30px; font-size: 13px; color: #888; }
-  </style>
+<meta charset="UTF-8">
+<title>BAN-MD Ultimate Pair</title>
+<style>
+  body {
+    margin: 0;
+    font-family: Arial, sans-serif;
+    text-align: center;
+    background: linear-gradient(270deg, #0d1117, #161b22);
+    background-size: 400% 400%;
+    animation: moveBg 20s linear infinite;
+    color: #fff;
+  }
+
+  @keyframes moveBg {
+    0% {background-position:0% 50%;}
+    50% {background-position:100% 50%;}
+    100% {background-position:0% 50%;}
+  }
+
+  .box {
+    margin: 80px auto;
+    padding: 30px;
+    background: rgba(20, 25, 35, 0.9);
+    border-radius: 10px;
+    width: 400px;
+    box-shadow: 0 0 20px rgba(0,0,0,0.6);
+  }
+
+  input {
+    width: 90%;
+    padding: 10px;
+    border-radius: 5px;
+    border: none;
+    margin-bottom: 10px;
+    font-size: 16px;
+  }
+
+  button {
+    padding: 10px 20px;
+    border: none;
+    border-radius: 5px;
+    background: #2ea043;
+    color: white;
+    cursor: pointer;
+    font-size: 16px;
+  }
+
+  button:hover {
+    background: #3fb950;
+  }
+
+  .code {
+    margin-top: 20px;
+    font-size: 22px;
+    font-weight: bold;
+    color: #58a6ff;
+  }
+
+  footer {
+    margin-top: 30px;
+    font-size: 13px;
+    color: #888;
+  }
+
+  #qr {
+    margin-top: 20px;
+  }
+
+  #status {
+    margin-top: 15px;
+    font-size: 14px;
+    color: #f0f0f0;
+  }
+</style>
 </head>
 <body>
-  <div class="box">
-    <h1>BAN-MD PAIR</h1>
-    <p>🔗 Link a New Device with your WhatsApp Number</p>
-    <input id="number" placeholder="+2567XXXXXXX" />
-    <br>
-    <button onclick="generate()">Generate Code</button>
-    <div id="result"></div>
-  </div>
 
-  <footer>
-    © 2025 BAN-MD. Created By <b>Kharel Herman Banks</b>
-  </footer>
+<div class="box">
+  <h1>BAN-MD PAIR</h1>
+  <p>🔗 Link a New Device with your WhatsApp Number</p>
+  <input id="number" placeholder="+2567XXXXXXX" />
+  <br>
+  <button onclick="generateCode()">Generate Code</button>
 
-  <script>
-    async function waitBotReady() {
-      let ready = false;
-      while (!ready) {
-        const res = await fetch('/status');
-        const data = await res.json();
-        if (data.ready) ready = true;
-        else await new Promise(r => setTimeout(r, 1000));
-      }
+  <div id="status">⏳ Waiting for bot...</div>
+  <div id="qr"></div>
+  <div id="result"></div>
+</div>
+
+<footer>
+  © 2025 BAN-MD. Created By <b>Kharel Herman Banks</b>
+</footer>
+
+<script src="https://cdn.jsdelivr.net/npm/qrcode/build/qrcode.min.js"></script>
+<script>
+let botReady = false;
+
+// Check bot status
+async function checkStatus() {
+  const res = await fetch('/status');
+  const data = await res.json();
+  botReady = data.ready;
+  document.getElementById("status").innerText = botReady 
+    ? "✅ Bot is ready. You can generate your pair code."
+    : "⏳ Bot not ready yet. Scan QR code to connect.";
+}
+
+// Fetch QR code and display
+async function fetchQR() {
+  const qrDiv = document.getElementById("qr");
+  try {
+    const res = await fetch('/qr');
+    const data = await res.json();
+    if (data.ok) {
+      QRCode.toCanvas(qrDiv, data.qr, { width: 200 }, function (error) {
+        if (error) console.error(error);
+      });
+    } else {
+      qrDiv.innerHTML = `<p>${data.message}</p>`;
     }
+  } catch(err) {
+    qrDiv.innerHTML = "<p>❌ QR not available</p>";
+  }
+}
 
-    async function generate() {
-      await waitBotReady();
-      const num = document.getElementById("number").value;
-      if (!num) return alert("Enter your number with country code");
-      document.getElementById("result").innerHTML = "⏳ Processing...";
+// Generate 8-digit pair code
+async function generateCode() {
+  await checkStatus();
+  if (!botReady) return alert("Bot not ready yet. Please scan the QR and wait a few seconds.");
 
-      const res = await fetch(`/pair?number=${encodeURIComponent(num)}`);
-      const data = await res.json();
+  const num = document.getElementById("number").value.trim();
+  if (!num) return alert("Enter your WhatsApp number with country code");
 
-      if (data.ok) {
-        document.getElementById("result").innerHTML = `
-          <p>Your Pairing Code:</p>
-          <div class="code">${data.code}</div>
-          <p>⚡ Open WhatsApp → Settings → Linked Devices → Link a Device → 
-          "Link with phone number instead" and enter this code.</p>
-        `;
-      } else {
-        document.getElementById("result").innerHTML = "❌ Failed: " + data.message;
-      }
+  const resultDiv = document.getElementById("result");
+  resultDiv.innerHTML = "⏳ Processing...";
+
+  try {
+    const res = await fetch(`/pair?number=${encodeURIComponent(num)}`);
+    const data = await res.json();
+    if (data.ok) {
+      resultDiv.innerHTML = `
+        <p>Your Pairing Code:</p>
+        <div class="code">${data.code}</div>
+        <p>⚡ Open WhatsApp → Settings → Linked Devices → Link a Device → 
+        "Link with phone number instead" and enter this code.</p>
+      `;
+    } else {
+      resultDiv.innerHTML = "❌ Failed: " + data.message;
     }
-  </script>
+  } catch(err) {
+    resultDiv.innerHTML = "❌ Error generating code";
+  }
+}
+
+// Initial load
+setInterval(checkStatus, 3000); // refresh status
+setInterval(fetchQR, 5000); // refresh QR every 5s
+fetchQR();
+checkStatus();
+</script>
+
 </body>
 </html>
 
