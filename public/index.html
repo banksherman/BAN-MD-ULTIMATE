@@ -1,100 +1,50 @@
-<!doctype html>
+<!DOCTYPE html>
 <html lang="en">
 <head>
-  <meta charset="utf-8" />
-  <meta name="viewport" content="width=device-width,initial-scale=1" />
-  <title>BAN-MD Ultimate</title>
+  <meta charset="UTF-8">
+  <title>BAN-MD Ultimate Pair</title>
   <style>
-    body { font-family: sans-serif; text-align: center; background: #0f1724; color: #e6eef8; }
-    .card { max-width: 460px; margin: 24px auto; padding: 20px; background: #0b1220; border-radius: 14px; }
-    h1 { color: #06b6d4; margin-top: 0 }
-    .pair, .qr { margin-top: 20px; padding: 12px; background: #1e293b; border-radius: 8px; }
-    .hint { color: #94a3b8; font-size: 13px; margin-top: 6px }
-    #qrcode { margin-top: 10px; min-height: 240px; display: flex; align-items: center; justify-content: center; }
-    button { padding: 10px 16px; border: none; border-radius: 8px; cursor: pointer; background: #06b6d4; color: #000; }
-    input { padding: 10px 12px; border-radius: 8px; border: 1px solid #243044; background: #0f1724; color: #e6eef8; }
-    .footer { margin-top: 18px; font-size: 12px; color: #94a3b8 }
-    .toast { position: fixed; bottom: 16px; left: 50%; transform: translateX(-50%); background:#0b1220; border:1px solid #1f2a44; padding:10px 14px; border-radius:10px;}
+    body { font-family: Arial, sans-serif; text-align: center; background: #0d1117; color: #fff; }
+    .box { margin: 100px auto; padding: 30px; background: #161b22; border-radius: 10px; width: 400px; }
+    input { width: 90%; padding: 10px; border-radius: 5px; border: none; margin-bottom: 10px; }
+    button { padding: 10px 20px; border: none; border-radius: 5px; background: #2ea043; color: white; cursor: pointer; }
+    button:hover { background: #3fb950; }
+    .code { margin-top: 20px; font-size: 22px; font-weight: bold; color: #58a6ff; }
+    footer { margin-top: 30px; font-size: 13px; color: #888; }
   </style>
 </head>
 <body>
-  <div class="card">
-    <h1>🤖🤖 BAN-MD PAIRING</h1>
-
-    <div class="qr">
-      <h2>📲💻 Scan QR to Login</h2>
-      <div class="hint">WhatsApp → Linked Devices → Link a device</div>
-      <div id="qrcode">⏳ Waiting for QR...</div>
-    </div>
-
-    <div class="pair">
-      <h3>🤖🤖 Pair Code (offline demo)</h3>
-      <p>Provide your number starting with country code.</p>
-      <input id="phone" type="text" placeholder="2567XXXXXXX" />
-      <button id="pairBtn">Request Code</button>
-      <div id="pairResult" class="hint"></div>
-    </div>
-
-    <div class="footer">Powered by <strong>KHAREL</strong></div>
+  <div class="box">
+    <h1>BAN-MD PAIR</h1>
+    <p>🔗 Link a New Device with your WhatsApp Number</p>
+    <input id="number" placeholder="+2567XXXXXXX" />
+    <br>
+    <button onclick="generate()">Generate Code</button>
+    <div id="result"></div>
   </div>
 
-  <div id="toast" class="toast" style="display:none">✅ Connected!</div>
+  <footer>
+    © 2025 BAN-MD. Created By <b>Kharel Herman Banks</b>
+  </footer>
 
-  <!-- Celebratory audio (host your own file or change the src) -->
-  <audio id="celebrate" src="/audio/nights.mp3" preload="auto" muted></audio>
-
-  <script src="https://cdn.jsdelivr.net/npm/qrcode/build/qrcode.min.js"></script>
   <script>
-    // --------- QR handling (auto-refresh every 12s) ----------
-    async function renderQR() {
-      try {
-        const res = await fetch('/qr', { cache: 'no-store' });
-        const box = document.getElementById('qrcode');
-        if (!res.ok) { box.textContent = '❌ QR not ready. Retrying...'; return; }
-        const data = await res.json();
-        if (!data.ok || !data.qr) { box.textContent = '❌ QR not ready yet.'; return; }
-        box.innerHTML = '';
-        QRCode.toCanvas(data.qr, { width: 240 }, (err, canvas) => {
-          if (err) { box.textContent = '❌ Error generating QR'; return; }
-          box.appendChild(canvas);
-        });
-      } catch {
-        document.getElementById('qrcode').textContent = '❌ Failed to load QR';
+    async function generate() {
+      const num = document.getElementById("number").value;
+      if (!num) return alert("Enter your number with country code");
+      document.getElementById("result").innerHTML = "⏳ Processing...";
+      const res = await fetch(`/pair?number=${encodeURIComponent(num)}`);
+      const data = await res.json();
+      if (data.ok) {
+        document.getElementById("result").innerHTML = `
+          <p>Your Pairing Code:</p>
+          <div class="code">${data.code}</div>
+          <p>⚡ Open WhatsApp → Settings → Linked Devices → Link a Device → 
+          "Link with phone number instead" and enter this code.</p>
+        `;
+      } else {
+        document.getElementById("result").innerHTML = "❌ Failed: " + data.message;
       }
     }
-    setInterval(renderQR, 12000);
-    renderQR();
-
-    // --------- “Pair code” demo (client-side only) ----------
-    function generatePairCode() {
-      return Math.floor(10000000 + Math.random() * 90000000).toString();
-    }
-    document.getElementById('pairBtn').addEventListener('click', () => {
-      const phone = (document.getElementById('phone').value || '').trim();
-      const out = document.getElementById('pairResult');
-      if (!/^\d{8,15}$/.test(phone)) { out.textContent = '❌ Invalid phone number'; return; }
-      out.textContent = `✅ ${phone} → Pair Code: ${generatePairCode()}`;
-    });
-
-    // --------- SSE: play audio & toast when connected -------
-    const evt = new EventSource('/events');
-    evt.addEventListener('connected', async (m) => {
-      // show toast
-      const toast = document.getElementById('toast');
-      toast.style.display = 'block';
-      toast.textContent = '✅ Connected! Welcome 🎉';
-      setTimeout(() => toast.style.display = 'none', 4000);
-
-      // Try to play audio (browsers require user interaction to unmute)
-      const audio = document.getElementById('celebrate');
-      try {
-        // If user has interacted (click/tap), unmute and play
-        const unlock = () => { audio.muted = false; audio.play().catch(()=>{}); window.removeEventListener('click', unlock); };
-        // attempt immediate play muted; then unlock on first click
-        await audio.play().catch(()=>{});
-        window.addEventListener('click', unlock);
-      } catch {}
-    });
   </script>
 </body>
 </html>
