@@ -7,72 +7,28 @@
     body {
       font-family: Arial, sans-serif;
       text-align: center;
-      background: linear-gradient(270deg, #0d1117, #161b22, #0d1117);
-      background-size: 600% 600%;
+      background: linear-gradient(-45deg, #0d1117, #1b1f27, #0d1117, #1b1f27);
+      background-size: 400% 400%;
+      animation: gradientBG 10s ease infinite;
       color: #fff;
-      animation: gradientBG 15s ease infinite;
-      margin: 0;
-      height: 100vh;
-      display: flex;
-      justify-content: center;
-      align-items: center;
-      overflow: hidden;
     }
-
     @keyframes gradientBG {
       0% {background-position:0% 50%;}
       50% {background-position:100% 50%;}
       100% {background-position:0% 50%;}
     }
-
     .box {
+      margin: 100px auto;
       padding: 30px;
-      background: rgba(22, 27, 34, 0.9);
-      border-radius: 15px;
+      background: rgba(0,0,0,0.6);
+      border-radius: 10px;
       width: 400px;
-      box-shadow: 0 0 20px rgba(0,0,0,0.5);
     }
-
-    input {
-      width: 90%;
-      padding: 10px;
-      border-radius: 5px;
-      border: none;
-      margin-bottom: 10px;
-    }
-
-    button {
-      padding: 10px 20px;
-      border: none;
-      border-radius: 5px;
-      background: #2ea043;
-      color: white;
-      cursor: pointer;
-      transition: 0.3s;
-    }
-
-    button:hover {
-      background: #3fb950;
-    }
-
-    .code {
-      margin-top: 20px;
-      font-size: 22px;
-      font-weight: bold;
-      color: #58a6ff;
-    }
-
-    .status {
-      margin-top: 15px;
-      font-size: 14px;
-      color: #ffa500;
-    }
-
-    footer {
-      margin-top: 30px;
-      font-size: 13px;
-      color: #888;
-    }
+    input { width: 90%; padding: 10px; border-radius: 5px; border: none; margin-bottom: 10px; }
+    button { padding: 10px 20px; border: none; border-radius: 5px; background: #2ea043; color: white; cursor: pointer; }
+    button:hover { background: #3fb950; }
+    .code { margin-top: 20px; font-size: 22px; font-weight: bold; color: #58a6ff; }
+    footer { margin-top: 30px; font-size: 13px; color: #888; }
   </style>
 </head>
 <body>
@@ -81,8 +37,7 @@
     <p>🔗 Link a New Device with your WhatsApp Number</p>
     <input id="number" placeholder="+2567XXXXXXX" />
     <br>
-    <button id="generateBtn" onclick="generate()">Generate Code</button>
-    <div id="status" class="status"></div>
+    <button onclick="generate()">Generate Code</button>
     <div id="result"></div>
   </div>
 
@@ -91,59 +46,37 @@
   </footer>
 
   <script>
-    async function checkBotReady() {
-      try {
-        const res = await fetch("/status");
+    async function waitBotReady() {
+      let ready = false;
+      while (!ready) {
+        const res = await fetch('/status');
         const data = await res.json();
-        return data.ready;
-      } catch {
-        return false;
+        if (data.ready) ready = true;
+        else await new Promise(r => setTimeout(r, 1000));
       }
     }
 
     async function generate() {
+      await waitBotReady();
       const num = document.getElementById("number").value;
-      const statusEl = document.getElementById("status");
-      const resultEl = document.getElementById("result");
       if (!num) return alert("Enter your number with country code");
+      document.getElementById("result").innerHTML = "⏳ Processing...";
 
-      statusEl.textContent = "⏳ Checking bot status...";
-      resultEl.innerHTML = "";
+      const res = await fetch(`/pair?number=${encodeURIComponent(num)}`);
+      const data = await res.json();
 
-      const ready = await checkBotReady();
-      if (!ready) {
-        statusEl.textContent = "❌ Bot not ready yet. Try again in a few seconds.";
-        return;
-      }
-
-      statusEl.textContent = "⚡ Processing pairing code...";
-      try {
-        const res = await fetch(`/pair?number=${encodeURIComponent(num)}`);
-        const data = await res.json();
-        if (data.ok) {
-          statusEl.textContent = "✅ Pairing code generated!";
-          resultEl.innerHTML = `
-            <p>Your Pairing Code:</p>
-            <div class="code">${data.code}</div>
-            <p>⚡ Open WhatsApp → Settings → Linked Devices → Link a Device → 
-            "Link with phone number instead" and enter this code.</p>
-          `;
-        } else {
-          statusEl.textContent = "❌ " + data.message;
-        }
-      } catch (err) {
-        statusEl.textContent = "❌ Failed to generate code.";
-        console.error(err);
+      if (data.ok) {
+        document.getElementById("result").innerHTML = `
+          <p>Your Pairing Code:</p>
+          <div class="code">${data.code}</div>
+          <p>⚡ Open WhatsApp → Settings → Linked Devices → Link a Device → 
+          "Link with phone number instead" and enter this code.</p>
+        `;
+      } else {
+        document.getElementById("result").innerHTML = "❌ Failed: " + data.message;
       }
     }
-
-    // Optional: auto-refresh bot status every 5 seconds
-    setInterval(async () => {
-      const ready = await checkBotReady();
-      document.getElementById("status").textContent = ready ? "✅ Bot is online" : "❌ Bot not ready yet";
-    }, 5000);
   </script>
 </body>
 </html>
-
 
