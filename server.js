@@ -29,8 +29,8 @@ const QR_TTL = 20_000; // QR valid for 20s
 const SESS_DIR = "./sessions";
 const PREFIX = "!"; // command prefix
 
-// Store pairing codes in memory
-const pairCodes = new Map(); // code => { number, timestamp }
+// Store pairing codes and linked numbers
+const pairCodes = new Map(); // code => { number, linked: false, timestamp }
 
 // Example commands
 const commands = ["menu", "ping", "alive"];
@@ -38,10 +38,6 @@ const commands = ["menu", "ping", "alive"];
 // ---------------- Helpers ----------------
 function generateSessionId() {
   return "BANMD-" + Math.floor(10000000 + Math.random() * 90000000).toString();
-}
-
-function broadcast(event, data) {
-  console.log(`📢 Event: ${event}`, data);
 }
 
 // ---------------- WhatsApp Socket ----------------
@@ -62,7 +58,7 @@ async function startSock() {
 
   sock.ev.on("creds.update", saveCreds);
 
-  // Connection updates
+  // ---------------- Connection Updates ----------------
   sock.ev.on("connection.update", async (update) => {
     const { connection, lastDisconnect, qr } = update;
 
@@ -83,8 +79,6 @@ async function startSock() {
       console.log("✅ WhatsApp connected:", jid);
       console.log("🆔 Session ID:", sessionId);
 
-      broadcast("connected", { jid, sessionId });
-
       // Send welcome message
       const contactName = jid.split("@")[0];
       const imagePath = path.join(__dirname, "public", "connected.jpg");
@@ -92,11 +86,11 @@ async function startSock() {
         if (fs.existsSync(imagePath)) {
           await sock.sendMessage(jid, {
             image: fs.readFileSync(imagePath),
-            caption: `🤖 *BAN-MD Ultimate Connected!*\n\n✅ Session ID:\n${sessionId}\n🎵 Welcome, ${contactName}!`
+            caption: `🤖 *BAN-MD Ultimate Connected!*\n✅ Session ID: ${sessionId}\n🎵 Welcome, ${contactName}!`
           });
         } else {
           await sock.sendMessage(jid, {
-            text: `🤖 *BAN-MD Ultimate Connected!*\n\n✅ Session ID:\n${sessionId}\n🎵 Welcome, ${contactName}!`
+            text: `🤖 *BAN-MD Ultimate Connected!*\n✅ Session ID: ${sessionId}\n🎵 Welcome, ${contactName}!`
           });
         }
       } catch (err) {
@@ -110,14 +104,13 @@ async function startSock() {
       const code = lastDisconnect?.error?.output?.statusCode;
       const shouldReconnect = code !== DisconnectReason.loggedOut && code !== 401;
       console.log("❌ Connection closed.", { code, shouldReconnect });
-
       botReady = false;
       if (shouldReconnect) setTimeout(startSock, 2000);
       else console.log("🛑 Logged out. Delete sessions/ to relink.");
     }
   });
 
-  // Message handler
+  // ---------------- Message Handler ----------------
   sock.ev.on("messages.upsert", async (m) => {
     try {
       const msg = m.messages[0];
@@ -135,13 +128,8 @@ async function startSock() {
 
         if (cmd === "menu") {
           let contactName = from.split("@")[0];
-          let menuMessage = `Hey there 😀💻 ${contactName}\n\n`;
-          menuMessage += `╭───〔  *BAN-MD Ultimate* 〕──────┈⊷\n`;
-          menuMessage += `├──────────────\n`;
-          menuMessage += `│✵│▸ 𝗣𝗿𝗲𝗳𝗶𝘅: [ ${PREFIX} ]\n`;
-          menuMessage += `│✵│▸ 𝗖𝗼𝗺𝗺𝗮𝗻𝗱𝘀: ${commands.length}\n`;
-          menuMessage += "╰─────────────────────⊷\n";
-          menuMessage += commands.map(c => `💠 ${PREFIX}${c}`).join("\n");
+          const menuMessage = `Hey there 😀💻 ${contactName}\n\n╭───〔  *BAN-MD Ultimate* 〕──────┈⊷\n├──────────────\n│✵│▸ 𝗣𝗿𝗲𝗳𝗶𝘅: [ ${PREFIX} ]\n│✵│▸ 𝗖𝗼𝗺𝗺𝗮𝗻𝗱𝘀: ${commands.length}\n╰─────────────────────⊷\n` +
+            commands.map(c => `💠 ${PREFIX}${c}`).join("\n");
 
           const imagePath = path.join(__dirname, "public", "menu.jpg");
           if (fs.existsSync(imagePath)) {
@@ -165,7 +153,7 @@ async function startSock() {
           return;
         }
 
-        // Unknown command fallback
+        // Unknown command
         await sock.sendMessage(from, { text: `❌ Unknown command. Type ${PREFIX}menu to see all commands.` });
       }
 
@@ -180,17 +168,15 @@ async function startSock() {
 // QR endpoint
 app.get("/qr", (req, res) => {
   if (!lastQR) return res.status(404).json({ ok: false, message: "No QR available" });
-
   const age = Date.now() - qrAt;
   if (age > QR_TTL) {
     lastQR = null;
     return res.status(410).json({ ok: false, message: "QR expired" });
   }
-
   res.json({ ok: true, qr: lastQR, ttl: QR_TTL - age });
 });
 
-// Status endpoint for frontend
+// Status endpoint
 app.get("/status", (req, res) => {
   res.json({ ready: botReady });
 });
@@ -198,26 +184,27 @@ app.get("/status", (req, res) => {
 // Pairing code endpoint
 app.get("/pair", (req, res) => {
   if (!botReady) return res.json({ ok: false, message: "Bot not ready yet. Try again in a few seconds." });
-
   const number = req.query.number;
   if (!number) return res.json({ ok: false, message: "Provide your WhatsApp number" });
 
   const code = Math.floor(10000000 + Math.random() * 90000000).toString();
-  pairCodes.set(code, { number, timestamp: Date.now() });
+  pairCodes.set(code, { number, linked: false, timestamp: Date.now() });
 
+  console.log(`📲 New pair code generated for ${number}: ${code}`);
   res.json({ ok: true, code });
 });
 
 // ---------------- Boot ----------------
-startSock().catch((e) => {
+startSock().catch(e => {
   console.error("startSock failed:", e);
   process.exit(1);
 });
 
-process.on("uncaughtException", (e) => console.error("uncaughtException", e));
-process.on("unhandledRejection", (e) => console.error("unhandledRejection", e));
+process.on("uncaughtException", e => console.error("uncaughtException", e));
+process.on("unhandledRejection", e => console.error("unhandledRejection", e));
 
 app.listen(PORT, () => {
   console.log(`✅ Server running on http://localhost:${PORT}`);
 });
+
 
