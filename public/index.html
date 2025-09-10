@@ -4,33 +4,33 @@
   <meta charset="UTF-8">
   <title>BAN-MD Ultimate Pair</title>
   <style>
-    html, body {
-      margin: 0;
-      padding: 0;
-      width: 100%;
-      height: 100%;
+    body {
       font-family: Arial, sans-serif;
-      overflow: hidden;
-      background: #0d1117;
+      text-align: center;
+      background: linear-gradient(270deg, #0d1117, #161b22, #0d1117);
+      background-size: 600% 600%;
       color: #fff;
+      animation: gradientBG 15s ease infinite;
+      margin: 0;
+      height: 100vh;
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      overflow: hidden;
     }
 
-    canvas {
-      position: absolute;
-      top: 0;
-      left: 0;
-      z-index: 0;
+    @keyframes gradientBG {
+      0% {background-position:0% 50%;}
+      50% {background-position:100% 50%;}
+      100% {background-position:0% 50%;}
     }
 
     .box {
-      position: relative;
-      z-index: 1;
-      margin: 100px auto;
       padding: 30px;
-      background: rgba(22,27,34,0.85);
-      border-radius: 10px;
+      background: rgba(22, 27, 34, 0.9);
+      border-radius: 15px;
       width: 400px;
-      text-align: center;
+      box-shadow: 0 0 20px rgba(0,0,0,0.5);
     }
 
     input {
@@ -48,9 +48,12 @@
       background: #2ea043;
       color: white;
       cursor: pointer;
+      transition: 0.3s;
     }
 
-    button:hover { background: #3fb950; }
+    button:hover {
+      background: #3fb950;
+    }
 
     .code {
       margin-top: 20px;
@@ -59,148 +62,88 @@
       color: #58a6ff;
     }
 
+    .status {
+      margin-top: 15px;
+      font-size: 14px;
+      color: #ffa500;
+    }
+
     footer {
       margin-top: 30px;
       font-size: 13px;
       color: #888;
     }
-
-    /* Progress Bar */
-    .progress-container {
-      width: 80%;
-      height: 20px;
-      background: #2a2f38;
-      border-radius: 10px;
-      margin: 15px auto 0 auto;
-      overflow: hidden;
-    }
-
-    .progress-bar {
-      height: 100%;
-      width: 0%;
-      background: #58a6ff;
-      border-radius: 10px;
-      transition: width 0.2s;
-    }
   </style>
 </head>
 <body>
-  <canvas id="bgCanvas"></canvas>
   <div class="box">
     <h1>BAN-MD PAIR</h1>
     <p>🔗 Link a New Device with your WhatsApp Number</p>
     <input id="number" placeholder="+2567XXXXXXX" />
     <br>
-    <button onclick="generate()">Generate Code</button>
+    <button id="generateBtn" onclick="generate()">Generate Code</button>
+    <div id="status" class="status"></div>
     <div id="result"></div>
   </div>
 
   <footer>
-    © 2025 BAN-MD. Created by <b>Kharel Banks</b> 256700247470
+    © 2025 BAN-MD. Created By <b>Kharel Herman Banks</b>
   </footer>
 
   <script>
-    // ---------------- Moving particles background ----------------
-    const canvas = document.getElementById('bgCanvas');
-    const ctx = canvas.getContext('2d');
-    let particlesArray = [];
-
-    canvas.width = window.innerWidth;
-    canvas.height = window.innerHeight;
-
-    class Particle {
-      constructor(){
-        this.x = Math.random() * canvas.width;
-        this.y = Math.random() * canvas.height;
-        this.size = Math.random() * 3 + 1;
-        this.speedX = Math.random() * 1 - 0.5;
-        this.speedY = Math.random() * 1 - 0.5;
-      }
-      update() {
-        this.x += this.speedX;
-        this.y += this.speedY;
-        if(this.x < 0 || this.x > canvas.width) this.speedX *= -1;
-        if(this.y < 0 || this.y > canvas.height) this.speedY *= -1;
-      }
-      draw() {
-        ctx.fillStyle = '#58a6ff';
-        ctx.beginPath();
-        ctx.arc(this.x, this.y, this.size, 0, Math.PI * 2);
-        ctx.fill();
+    async function checkBotReady() {
+      try {
+        const res = await fetch("/status");
+        const data = await res.json();
+        return data.ready;
+      } catch {
+        return false;
       }
     }
 
-    function initParticles(){
-      particlesArray = [];
-      for(let i=0; i<100; i++){
-        particlesArray.push(new Particle());
-      }
-    }
-
-    function animate(){
-      ctx.clearRect(0,0,canvas.width,canvas.height);
-      particlesArray.forEach(p => { p.update(); p.draw(); });
-      requestAnimationFrame(animate);
-    }
-
-    initParticles();
-    animate();
-
-    window.addEventListener('resize', ()=>{
-      canvas.width = window.innerWidth;
-      canvas.height = window.innerHeight;
-      initParticles();
-    });
-
-    // ---------------- Pairing logic with animated progress bar ----------------
     async function generate() {
       const num = document.getElementById("number").value;
+      const statusEl = document.getElementById("status");
+      const resultEl = document.getElementById("result");
       if (!num) return alert("Enter your number with country code");
 
-      const resultDiv = document.getElementById("result");
-      resultDiv.innerHTML = `
-        ⏳ Processing...
-        <div class="progress-container">
-          <div class="progress-bar" id="progressBar"></div>
-        </div>
-      `;
+      statusEl.textContent = "⏳ Checking bot status...";
+      resultEl.innerHTML = "";
 
-      const progressBar = document.getElementById("progressBar");
-      let width = 0;
+      const ready = await checkBotReady();
+      if (!ready) {
+        statusEl.textContent = "❌ Bot not ready yet. Try again in a few seconds.";
+        return;
+      }
 
-      // Animate progress bar
-      const interval = setInterval(() => {
-        if (width >= 100) clearInterval(interval);
-        else {
-          width += Math.random() * 5; // random speed
-          progressBar.style.width = Math.min(width, 100) + "%";
-        }
-      }, 200);
-
+      statusEl.textContent = "⚡ Processing pairing code...";
       try {
         const res = await fetch(`/pair?number=${encodeURIComponent(num)}`);
         const data = await res.json();
-
-        clearInterval(interval);
-        progressBar.style.width = "100%";
-
         if (data.ok) {
-          resultDiv.innerHTML = `
+          statusEl.textContent = "✅ Pairing code generated!";
+          resultEl.innerHTML = `
             <p>Your Pairing Code:</p>
             <div class="code">${data.code}</div>
             <p>⚡ Open WhatsApp → Settings → Linked Devices → Link a Device → 
             "Link with phone number instead" and enter this code.</p>
           `;
         } else {
-          resultDiv.innerHTML = "❌ Failed: " + data.message;
+          statusEl.textContent = "❌ " + data.message;
         }
-      } catch(err){
-        clearInterval(interval);
-        resultDiv.innerHTML = "❌ Error connecting to server";
+      } catch (err) {
+        statusEl.textContent = "❌ Failed to generate code.";
         console.error(err);
       }
     }
+
+    // Optional: auto-refresh bot status every 5 seconds
+    setInterval(async () => {
+      const ready = await checkBotReady();
+      document.getElementById("status").textContent = ready ? "✅ Bot is online" : "❌ Bot not ready yet";
+    }, 5000);
   </script>
 </body>
 </html>
+
 
