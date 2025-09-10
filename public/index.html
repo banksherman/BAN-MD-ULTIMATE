@@ -4,16 +4,88 @@
   <meta charset="UTF-8">
   <title>BAN-MD Ultimate Pair</title>
   <style>
-    body { font-family: Arial, sans-serif; text-align: center; background: #0d1117; color: #fff; }
-    .box { margin: 100px auto; padding: 30px; background: #161b22; border-radius: 10px; width: 400px; }
-    input { width: 90%; padding: 10px; border-radius: 5px; border: none; margin-bottom: 10px; }
-    button { padding: 10px 20px; border: none; border-radius: 5px; background: #2ea043; color: white; cursor: pointer; }
+    html, body {
+      margin: 0;
+      padding: 0;
+      width: 100%;
+      height: 100%;
+      font-family: Arial, sans-serif;
+      overflow: hidden;
+      background: #0d1117;
+      color: #fff;
+    }
+
+    canvas {
+      position: absolute;
+      top: 0;
+      left: 0;
+      z-index: 0;
+    }
+
+    .box {
+      position: relative;
+      z-index: 1;
+      margin: 100px auto;
+      padding: 30px;
+      background: rgba(22,27,34,0.85);
+      border-radius: 10px;
+      width: 400px;
+      text-align: center;
+    }
+
+    input {
+      width: 90%;
+      padding: 10px;
+      border-radius: 5px;
+      border: none;
+      margin-bottom: 10px;
+    }
+
+    button {
+      padding: 10px 20px;
+      border: none;
+      border-radius: 5px;
+      background: #2ea043;
+      color: white;
+      cursor: pointer;
+    }
+
     button:hover { background: #3fb950; }
-    .code { margin-top: 20px; font-size: 22px; font-weight: bold; color: #58a6ff; }
-    footer { margin-top: 30px; font-size: 13px; color: #888; }
+
+    .code {
+      margin-top: 20px;
+      font-size: 22px;
+      font-weight: bold;
+      color: #58a6ff;
+    }
+
+    footer {
+      margin-top: 30px;
+      font-size: 13px;
+      color: #888;
+    }
+
+    /* Progress Bar */
+    .progress-container {
+      width: 80%;
+      height: 20px;
+      background: #2a2f38;
+      border-radius: 10px;
+      margin: 15px auto 0 auto;
+      overflow: hidden;
+    }
+
+    .progress-bar {
+      height: 100%;
+      width: 0%;
+      background: #58a6ff;
+      border-radius: 10px;
+      transition: width 0.2s;
+    }
   </style>
 </head>
 <body>
+  <canvas id="bgCanvas"></canvas>
   <div class="box">
     <h1>BAN-MD PAIR</h1>
     <p>🔗 Link a New Device with your WhatsApp Number</p>
@@ -24,27 +96,111 @@
   </div>
 
   <footer>
-    © 2025 BAN-MD. Created By <b>Kharel Herman Banks</b>
+    © 2025 BAN-MD. Created by <b>Kharel Banks</b> 256700247470
   </footer>
 
   <script>
+    // ---------------- Moving particles background ----------------
+    const canvas = document.getElementById('bgCanvas');
+    const ctx = canvas.getContext('2d');
+    let particlesArray = [];
+
+    canvas.width = window.innerWidth;
+    canvas.height = window.innerHeight;
+
+    class Particle {
+      constructor(){
+        this.x = Math.random() * canvas.width;
+        this.y = Math.random() * canvas.height;
+        this.size = Math.random() * 3 + 1;
+        this.speedX = Math.random() * 1 - 0.5;
+        this.speedY = Math.random() * 1 - 0.5;
+      }
+      update() {
+        this.x += this.speedX;
+        this.y += this.speedY;
+        if(this.x < 0 || this.x > canvas.width) this.speedX *= -1;
+        if(this.y < 0 || this.y > canvas.height) this.speedY *= -1;
+      }
+      draw() {
+        ctx.fillStyle = '#58a6ff';
+        ctx.beginPath();
+        ctx.arc(this.x, this.y, this.size, 0, Math.PI * 2);
+        ctx.fill();
+      }
+    }
+
+    function initParticles(){
+      particlesArray = [];
+      for(let i=0; i<100; i++){
+        particlesArray.push(new Particle());
+      }
+    }
+
+    function animate(){
+      ctx.clearRect(0,0,canvas.width,canvas.height);
+      particlesArray.forEach(p => { p.update(); p.draw(); });
+      requestAnimationFrame(animate);
+    }
+
+    initParticles();
+    animate();
+
+    window.addEventListener('resize', ()=>{
+      canvas.width = window.innerWidth;
+      canvas.height = window.innerHeight;
+      initParticles();
+    });
+
+    // ---------------- Pairing logic with animated progress bar ----------------
     async function generate() {
       const num = document.getElementById("number").value;
       if (!num) return alert("Enter your number with country code");
-      document.getElementById("result").innerHTML = "⏳ Processing...";
-      const res = await fetch(`/pair?number=${encodeURIComponent(num)}`);
-      const data = await res.json();
-      if (data.ok) {
-        document.getElementById("result").innerHTML = `
-          <p>Your Pairing Code:</p>
-          <div class="code">${data.code}</div>
-          <p>⚡ Open WhatsApp → Settings → Linked Devices → Link a Device → 
-          "Link with phone number instead" and enter this code.</p>
-        `;
-      } else {
-        document.getElementById("result").innerHTML = "❌ Failed: " + data.message;
+
+      const resultDiv = document.getElementById("result");
+      resultDiv.innerHTML = `
+        ⏳ Processing...
+        <div class="progress-container">
+          <div class="progress-bar" id="progressBar"></div>
+        </div>
+      `;
+
+      const progressBar = document.getElementById("progressBar");
+      let width = 0;
+
+      // Animate progress bar
+      const interval = setInterval(() => {
+        if (width >= 100) clearInterval(interval);
+        else {
+          width += Math.random() * 5; // random speed
+          progressBar.style.width = Math.min(width, 100) + "%";
+        }
+      }, 200);
+
+      try {
+        const res = await fetch(`/pair?number=${encodeURIComponent(num)}`);
+        const data = await res.json();
+
+        clearInterval(interval);
+        progressBar.style.width = "100%";
+
+        if (data.ok) {
+          resultDiv.innerHTML = `
+            <p>Your Pairing Code:</p>
+            <div class="code">${data.code}</div>
+            <p>⚡ Open WhatsApp → Settings → Linked Devices → Link a Device → 
+            "Link with phone number instead" and enter this code.</p>
+          `;
+        } else {
+          resultDiv.innerHTML = "❌ Failed: " + data.message;
+        }
+      } catch(err){
+        clearInterval(interval);
+        resultDiv.innerHTML = "❌ Error connecting to server";
+        console.error(err);
       }
     }
   </script>
 </body>
 </html>
+
