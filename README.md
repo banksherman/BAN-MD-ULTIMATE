@@ -5,6 +5,5 @@
 - Pair code login: visit `/pair?phone=2567XXXXXXXX`
 - Status: `/status`
 
-Sessions are stored in `./sessions`.
-https://ban-md-ultimate-1.onrender.com
-https://ban-md-ultimate-2.onrender.com
+Sessions are stored 
+https://bot-1-jq0s.onrender.com/
