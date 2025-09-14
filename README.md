@@ -9,3 +9,4 @@ Sessions are stored
 https://bot-1-jq0s.onrender.com/
 https://bot-1-jq0s.onrender.com
 https://anchpage.netlify.app/
+anchors25
