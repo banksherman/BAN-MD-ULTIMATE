@@ -1,0 +1,189 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>WELCOME TO ANCHORS - MADE BY KHAREL</title>
+<style>
+body { 
+  margin:0; font-family:Arial,sans-serif; color:white; text-align:center; overflow-x:hidden;
+  scroll-behavior: smooth;
+  background:linear-gradient(270deg,#1e3c72,#2a5298,#4b6cb7); background-size:600% 600%; animation:gradientBG 30s ease infinite;
+}
+@keyframes gradientBG { 0%{background-position:0% 50%;} 50%{background-position:100% 50%;} 100%{background-position:0% 50%;} }
+.content-box { background: rgba(0,0,0,0.6); border-radius: 15px; box-shadow: 0 0 20px rgba(255,255,255,0.3);
+  padding: 20px; margin: 20px auto; max-width: 900px; position: relative; z-index: 2; }
+h1 { font-size:2.5em; margin:20px 0; opacity:0; animation:bounceIn 1s ease forwards, glowPulse 2s ease-in-out infinite alternate; }
+@keyframes bounceIn{0%{transform:scale(0.3);opacity:0;}50%{transform:scale(1.1);opacity:1;}70%{transform:scale(0.9);}100%{transform:scale(1);opacity:1;}}
+@keyframes glowPulse{0%{text-shadow:0 0 10px #fff,0 0 20px #0ff;}50%{text-shadow:0 0 20px #fff,0 0 30px #00f;}100%{text-shadow:0 0 10px #fff,0 0 20px #0ff;}}
+.motto{font-size:1.2em;color:#ffd700;margin:10px 0;font-weight:bold;}
+#frontOptions button, #nameBox button, #passwordBox button, #visitorStep button { margin-top:10px; padding:10px 20px; border:none; border-radius:8px; font-weight:bold; cursor:pointer; width:100%; transition: all 0.3s ease; }
+#frontOptions button{background:#ffd700; box-shadow: 0 0 10px #ffd700; color:black;}
+#frontOptions button:hover{box-shadow: 0 0 20px #0ff; transform:scale(1.05);}
+#nameBox button,#passwordBox button,#visitorStep button{background:#00ff99; box-shadow:0 0 10px #0f0; color:black;}
+#nameBox button:hover,#passwordBox button:hover,#visitorStep button:hover{box-shadow:0 0 20px #0ff; transform:scale(1.05);}
+#nameBox input,#passwordBox input,#visitorStep input{ padding:8px; border-radius:6px; border:none; font-size:1em; width:70%; }
+.name-pair { display:flex; justify-content:space-around; margin:5px 0; flex-wrap: wrap; }
+.name-box { flex:0 0 48%; padding:10px; margin:2px; border-radius:8px; background:#222; font-weight:bold; color:white; scroll-margin-top:20px; text-align:left; }
+.name-title { color:lime; font-weight:bold; text-decoration:underline; }
+.glow { text-shadow: 0 0 10px #0ff, 0 0 20px #0ff, 0 0 30px #0ff; }
+
+/* Story boxes */
+.story-box { background: rgba(0,0,0,0.7); border-radius: 15px; padding: 25px; margin: 20px auto; max-width: 900px; font-size: 1.2em; line-height: 1.6em; color: white; opacity: 0; transition: opacity 1.5s ease-in-out; }
+.story-box.active { opacity: 1; }
+.story-heading { color: #ffd700; font-weight: bold; font-size: 1.3em; text-decoration: underline; display: block; margin-bottom: 10px; }
+#verifiedList { display:none; margin-top:10px; font-size:1.1em; }
+</style>
+</head>
+<body>
+
+<div class="content-box">
+  <h1 id="welcomeText">✨ WELCOME TO ANCHORS ✨</h1>
+  <div class="motto">(AURA MATTERS)</div>
+</div>
+
+<div class="content-box" id="frontOptions">
+  <button id="classmateBtn">ARE U A CLASSMATE OF ANCHORS</button>
+  <button id="visitorBtn">I AM NOT A CLASSMATE BUT SENT ON THIS PAGE</button>
+</div>
+
+<div class="content-box" id="nameBox" style="display:none;">
+  <input type="text" id="nameInput" placeholder="Enter your name">
+  <button id="verifyNameBtn">Verify</button>
+</div>
+
+<div class="content-box" id="passwordBox" style="display:none;">
+  <input type="password" id="storyPassword" placeholder="Enter Password">
+  <button id="unlockBtn">Unlock</button>
+</div>
+
+<div class="content-box" id="storyBox" style="display:none;"></div>
+
+<ul id="verifiedList"></ul>
+<div id="storyContainer"></div>
+
+<script>
+// --- Background Music ---
+const bgMusic = new Audio("https://www.soundhelix.com/examples/mp3/SoundHelix-Song-1.mp3");
+bgMusic.loop = true; bgMusic.volume = 0.1; bgMusic.playbackRate = 0.6;
+function fadeInMusic(){ bgMusic.play(); }
+
+// --- Stories ---
+const stories = [
+  {heading:"ANCHORS STREAM", text:"Hehe it fades away then transition..."},
+  {heading:"A MOMENT OF SILENCE", text:"To that one guy Kasagga our CT..."},
+  {heading:"SPORTS", text:"They won football, handball, but lost volleyball last malast..."},
+  {heading:"THE MAN OF MALAST", text:"Who was hated, spear was chopped leaving the stream in terror..."},
+  {heading:"GAFAX", text:"Incoming striker of handball..."},
+  {heading:"LOSSES", text:"Buh we lost these gwans also Mathias n Museveni hehe anyway we still stand strong..."},
+  {heading:"CATEGORIES", text:"Sazos of the class: Lwasa, Nobert, Brasio, Deo, Amwine, Nsubuga..."},
+  {heading:"BEST FOOTBALLERS", text:"Kabada, Kaji, Matia, Bright, Messe..."},
+  {heading:"COMEDIAS/YAPISTS", text:"Bright, Stevo, Kata..."},
+  {heading:"BAVARIANS", text:"Hunta Jona, Morgan..."},
+  {heading:"STAND OUTS", text:"Zoks Official, Peace, Stevo, JJagwe, Savio, Nsubuga..."},
+  {heading:"SPEED MARCHANT", text:"James Aine hehe so fast..."},
+  {heading:"OVERALL CREATOR", text:"Heee Herman Kamulegeya 😎"}
+];
+let currentIndex = 0;
+
+function showStory(index){
+  storyContainer.innerHTML = "";
+  const box = document.createElement("div");
+  box.className = "story-box content-box";
+  box.innerHTML = `<span class="story-heading">${stories[index].heading}</span>${stories[index].text}`;
+  storyContainer.appendChild(box);
+  setTimeout(()=>box.classList.add("active"),100);
+  setTimeout(()=>{
+    box.classList.remove("active");
+    setTimeout(()=>{
+      currentIndex = (currentIndex + 1) % stories.length;
+      showStory(currentIndex);
+    },1500);
+  },8000);
+}
+
+// --- Verified Classmates (Pairs) ---
+const verifiedPairs = [
+  ["Ahereza Conrad","Ainamani Kyzer Mwebaza"],["Ainebyona James","Ark Quintine"],["Bright Amanya","AMANYA Ethan Rwakinanga"],
+  ["AmanyaJAMES - Class General Duties","AMWINE JOSEPH"],["ARIHO RONALD","ARINAITWE BLESSING"],["ATOLELE IAN PAUL","LUTHER KING"],
+  ["MYLES MUHEREZA","ATUKUNDA BRILLIANT"],["ABOO ATWINNE ABRAHAM","TREVOR AYEBAZE"],["NICK AYEBAZIBWE","RODRICK BAGUMA"],
+  ["BRIAN BRASIO BUKENYA","CYUSA DAVID"],["MICHEAL ANDREW KABUYE","ADRIAN KAGGWWA"],["PATRICK KAKAETO","HERMAN KHAREL - Creator"],
+  ["NOBERT NOSH KANYOPE","GARY KARUHANGA ATWINNE"],["GODFREY KATENDE","LEON CRESPO KAYANJA"],["JOEL TREASURE KERATHUM","PROSPER KIBWANA"],
+  ["MATHIAS KIMBUGWE","DOUGLAS SISTO KIRUMIRA"],["PAUL KITAYIMBWA","ANTHONY KIVUMBI"],["JONATHAN LUBOWA - Class Monitor","PATRICK JAMES LUKOMWA"],
+  ["PHILIP PAUL LWASA","MARK MORGAN TUMUSIME"],["PETER CLAVER MUGAMBE","ENOCK GAFAYO MUGISHA"],["TIMOTHY MUGISHA","JOEL MUGUMYA LOST SHEEP"],
+  ["ALVIN MUWANGUZI","PAUL MUHEREZA"],["JOSHUA MUHWEZI - Deputy Monitor","MATIA MULALIRA"],["DEOGRATIAS MULIIKA","STEPHENE MULIIKA"],
+  ["PEACE ANDREW MULIIKA","HARRY LANDA MUTUNGI"],["JONATHAN MWEBE","ISAAC NEWTON NAHABWE"],["STEPHEN NAMARA","ALOYSIOUS NSUBUGA"],
+  ["PHILLIP EMMANUEL O","EMMANUEL RUKUNDO"],["PETER SSEKYONDWA","JONATHAN SSEMANDA"],["JOY SAVIO SSEMANDA","DESMOND DONALD SSENTONGO"]
+];
+
+// --- Password ---
+const anchorPassword = "anchors25";
+
+// --- Elements ---
+const storyBox=document.getElementById("storyBox");
+const storyContainer=document.getElementById("storyContainer");
+const verifiedList=document.getElementById("verifiedList");
+
+// --- Classmate Flow ---
+document.getElementById("classmateBtn").onclick = ()=>{
+  document.getElementById("frontOptions").style.display="none";
+  document.getElementById("nameBox").style.display="block";
+};
+
+document.getElementById("verifyNameBtn").onclick = ()=>{
+  const inputName=document.getElementById("nameInput").value.toUpperCase().trim();
+  const flatNames = verifiedPairs.flat();
+  const matchedName = flatNames.find(n=>n.toUpperCase().includes(inputName));
+  if(matchedName){
+    document.getElementById("nameBox").style.display="none";
+    document.getElementById("passwordBox").style.display="block";
+    storyBox.innerHTML = `✨ ${matchedName} u are truly welcome to our own hehe fantasy ✨`;
+  }else{ alert("Name not approved. Try again!"); }
+};
+
+// --- Unlock + Start Stories ---
+document.getElementById("unlockBtn").onclick = ()=>{
+  const pass = document.getElementById("storyPassword").value.trim();
+  const userName = document.getElementById("nameInput").value || "Guest";
+  if(pass === anchorPassword){
+    document.getElementById("passwordBox").style.display="none";
+    storyBox.style.display="block";
+    fadeInMusic();
+    storyBox.innerHTML = `✨ ${userName} you are truly welcome to our own hehe fantasy ✨ <br><br>📖 Here are the Anchors Stories:`;
+    setTimeout(()=>showStory(currentIndex),2000);
+  }else{ alert("Incorrect password!"); }
+};
+
+// --- Visitor Flow ---
+document.getElementById("visitorBtn").onclick = ()=>{
+  document.getElementById("frontOptions").style.display="none";
+  document.getElementById("storyBox").style.display="block";
+  storyBox.innerHTML = `<div class="glow">MAY WE KNOW UR XCUL?</div><input type="text" id="visitorXcul" placeholder="Enter your XCUL"><button id="submitXcul">Submit</button>`;
+  
+  document.getElementById("submitXcul").onclick = ()=>{
+    const xcul = document.getElementById("visitorXcul").value.trim();
+    if(!xcul) return alert("Please enter your XCUL!");
+    storyBox.innerHTML = `<div class="glow">HUH? ${xcul.toUpperCase()}? ANYWAY HERE IS THE ESTEEMED LIST OF ANCHORS GENTLEMEN</div>`;
+    setTimeout(()=> showVisitorList(), 3000);
+  };
+};
+
+function showVisitorList(){
+  storyContainer.innerHTML="";
+  let counter=1;
+  verifiedPairs.forEach(pair=>{
+    const pairDiv = document.createElement("div");
+    pairDiv.className="name-pair content-box glow";
+    pair.forEach(name=>{
+      const nameDiv = document.createElement("div");
+      nameDiv.className="name-box";
+      nameDiv.innerHTML=`<span class="name-title">${counter}. ${name}</span>`;
+      counter++;
+      pairDiv.appendChild(nameDiv);
+    });
+    storyContainer.appendChild(pairDiv);
+  });
+}
+</script>
+</body>
+</html>
